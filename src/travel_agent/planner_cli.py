@@ -60,8 +60,8 @@ def main():
         print('{"error":"live_flag_required"}', file=sys.stderr)
         return 2
     try:
-        raw = sys.stdin.read(12001)
-        if len(raw) > 12000:
+        raw = sys.stdin.read(64001)
+        if len(raw) > 64000:
             raise ValueError("input_too_long")
         data = PlanningInput.model_validate_json(raw)
         limits = PlannerLimits(service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "200")))

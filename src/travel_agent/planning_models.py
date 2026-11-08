@@ -5,16 +5,21 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from .models import Contract, IntakeInput, Text
+from .references import ReferenceInput, digest
 
 
 class PlanningInput(Contract):
     city: Text
     trip: IntakeInput
+    references: Annotated[tuple[ReferenceInput, ...], Field(max_length=5)] = ()
 
     @model_validator(mode="after")
     def city_present(self):
         if not self.city.strip():
             raise ValueError("城市不能为空")
+        identities = [digest(item.model_dump_json()) for item in self.references]
+        if len(set(identities)) != len(identities):
+            raise ValueError("duplicate_reference")
         return self
 
 

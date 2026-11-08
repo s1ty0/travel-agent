@@ -49,6 +49,18 @@ def render_markdown(result):
         if plan["missing_fields"]:
             lines.append("- 需求还有待补充或确认的条件，当前保留为草案。")
         lines.extend(["", "## 来源", ""])
+        for document in result.get("reference_documents", []):
+            lines.append(
+                f"- 用户导入资料：{_escape(document['title'])}；"
+                f"类型：{_escape(document['acquisition'])}，未独立核实。"
+            )
+            lines.append("  导入时间：" + _escape(document["imported_at"]) + "。")
+        for activity in plan["activities"]:
+            for citation in activity.get("citations", []):
+                lines.append(
+                    "- 引文（待核实）：" + _escape(citation["quote"]) + "；"
+                    "来源 ID：" + _escape(citation["source_id"]) + "。"
+                )
         seen = set()
         for batch in result["sources"]:
             for hit in batch["hits"]:

@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from .budget import check_budget
 from .models import IntakeInput, LedgerInput, TripRequest, ValidationReport
 from .parsing import intake
+from .references import EvidenceInspection, import_reference, inspection_report
 
 app = FastAPI(title="travel-agent (M1 offline)", version="0.1.0")
 
@@ -26,3 +27,12 @@ def parse_request(data: IntakeInput):
 @app.post("/v1/budget/check", response_model=ValidationReport)
 def validate_budget(data: LedgerInput):
     return check_budget(data)
+
+
+@app.post("/v1/references/inspect")
+def inspect_references(data: EvidenceInspection):
+    # Stateless and offline: no model use or snapshot saving, even if input flags opt in.
+    documents = tuple(import_reference(item) for item in data.references)
+    if len({doc.source_id for doc in documents}) != len(documents):
+        raise HTTPException(422, "资料重复，请检查来源。")
+    return inspection_report(documents, data.quotes)
