@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-2026-11-08：完成首轮公开资料调研和项目文档基线。尚未实现可运行应用，也没有接入业务 API 或交易。当前可以审阅需求、调研结论、架构选择与分阶段验收标准。
+2026-11-08：完成 M1 离线需求解析和费用核算，提供本地 CLI 与只读 API。尚未接入实时来源、Agent 编排、完整行程或交易，尚不可正式上线。
 
 远程仓库：[s1ty0/travel-agent](https://github.com/s1ty0/travel-agent)。
 
@@ -28,12 +28,30 @@
 | [ADR-0001](docs/decisions/0001-evidence-first-workflow.md) | 当前架构选择、替代方案和验证条件。 |
 | [开发日志](docs/devlogs/2026-11-08-bootstrap.md) | 本次实际操作、验证与未完成事项。 |
 | [CHANGELOG.md](CHANGELOG.md) | 面向使用者的变更。 |
+| [测试门禁](docs/TESTING.md) | 本地检查命令、分层测试及正式上线条件。 |
 
 ## 如何继续开发
 
-下一步进入 M1：先实现需求结构、预算解析和离线校验。随后验证一个国内模型、一个搜索源与高德，建立单 Agent 基线，再比较多 Agent 的质量、耗时和成本。
+下一步进入 M2：验证一个国内模型、一个搜索源与高德，建立带证据的单 Agent 基线，再比较多 Agent 的质量、耗时和成本。
 
-目前没有启动命令或依赖安装步骤。代码就绪后再补充真实可运行的开发说明。
+需要 Python 3.11 或以上，以及 uv。本次本地验证使用 Python 3.13.14、uv 0.12.5；应用和测试依赖已锁定于 `uv.lock`。
+
+```powershell
+uv sync --locked
+uv run --no-sync travel-agent --destination "南京附近" --budget "2000~3000"
+uv run --no-sync uvicorn travel_agent.api:app --host 127.0.0.1 --port 8000
+```
+
+本地 API 文档位于 `http://127.0.0.1:8000/docs`。`GET /health` 显示阶段；`POST /v1/intake` 解析专用目的地和预算字段；`POST /v1/budget/check` 核算声明范围内的费用。当前不从整段聊天自动抽取全部日期/人数，也不核实地图实体。
+
+预算口径支持总额、每人、每天及每人每天。单值先作为目标；“以内”作为上限；区间下限默认是偏好。房晚、人数、税费与预备金分别核算；未知成本或未确认口径不显示为通过。API 返回金额单位为分。
+
+```powershell
+uv run --no-sync python scripts/check.py
+uv build --out-dir artifacts/dist
+```
+
+测试报告保存在被忽略的 `artifacts/qa/`。当前全量指全部已实现的离线功能；真实集成、端到端、安全、性能与预发布测试仍是正式上线前的必需门禁。
 
 ## 数据与许可
 

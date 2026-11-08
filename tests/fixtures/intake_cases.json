@@ -1,0 +1,22 @@
+[
+  {"destination":"南京","budget":"5000以内","mode":"exact","kind":"ceiling","cap":500000},
+  {"destination":"上海","budget":"2000元","mode":"exact","kind":"target","cap":null},
+  {"destination":"南京附近","budget":"2000~3000","mode":"nearby","kind":"range","cap":300000},
+  {"destination":"上海周边","budget":"2000～3000","mode":"nearby","kind":"range","cap":300000},
+  {"destination":"苏州","budget":"每人2000","mode":"exact","kind":"target","cap":null},
+  {"destination":"玄武湖","budget":"预算：500元以内","mode":"exact","kind":"ceiling","cap":50000},
+  {"destination":"北京","budget":"不超过1000","mode":"exact","kind":"ceiling","cap":100000},
+  {"destination":"杭州附近","budget":"最多3000元","mode":"nearby","kind":"ceiling","cap":300000},
+  {"destination":"成都","budget":"上限10000","mode":"exact","kind":"ceiling","cap":1000000},
+  {"destination":"重庆周边地区","budget":"总预算5000以内","mode":"nearby","kind":"ceiling","cap":500000},
+  {"destination":"南京","budget":"每人每天200以内","mode":"exact","kind":"ceiling","cap":20000},
+  {"destination":"上海","budget":"人均每天300元","mode":"exact","kind":"target","cap":null},
+  {"destination":"西安","budget":"每天500元以下","mode":"exact","kind":"ceiling","cap":50000},
+  {"destination":"南京附近","budget":"人民币2000至3000元","mode":"nearby","kind":"range","cap":300000},
+  {"destination":"广州","budget":"￥５０００以内","mode":"exact","kind":"ceiling","cap":500000},
+  {"destination":"南京","budget":"2~3千","mode":"exact","kind":"range","cap":300000},
+  {"destination":"上海周边","budget":"0.5万以内","mode":"nearby","kind":"ceiling","cap":500000},
+  {"destination":"深圳","budget":" 2000 到 3000 元 ","mode":"exact","kind":"range","cap":300000},
+  {"destination":"南京附近","budget":"CNY2000以内","mode":"nearby","kind":"ceiling","cap":200000},
+  {"destination":"上海","budget":"2000-3000元","mode":"exact","kind":"range","cap":300000}
+]

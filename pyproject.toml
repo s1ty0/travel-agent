@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "travel-agent"
+version = "0.1.0"
+description = "Evidence-based domestic travel planning assistant"
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.115,<1", "pydantic>=2.10,<3", "uvicorn>=0.30,<1"]
+
+[dependency-groups]
+dev = [
+    "httpx2<3",
+    "pytest>=8,<10",
+    "pytest-cov>=6,<8",
+    "ruff>=0.11,<1",
+]
+
+[project.scripts]
+travel-agent = "travel_agent.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/travel_agent"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/scripts", "/docs", "/README.md", "/AGENT.md", "/AGENTS.md", "/PLAN.md", "/CHANGELOG.md", "/pyproject.toml", "/uv.lock"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--basetemp=artifacts/pytest-temp"
+markers = ["smoke: offline critical-path checks", "regression: fixed input semantics"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
