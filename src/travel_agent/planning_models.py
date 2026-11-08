@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from .models import Contract, IntakeInput, Text
+from .page_fetch import ReviewedPageURL
 from .references import ReferenceInput, digest
 
 
@@ -12,6 +13,10 @@ class PlanningInput(Contract):
     city: Text
     trip: IntakeInput
     references: Annotated[tuple[ReferenceInput, ...], Field(max_length=5)] = ()
+    page_urls: Annotated[
+        tuple[str, ...],
+        Field(max_length=2, description="明确允许本次读取并送入模型的已审查公开网址；默认不开放"),
+    ] = ()
 
     @model_validator(mode="after")
     def city_present(self):
@@ -20,6 +25,10 @@ class PlanningInput(Contract):
         identities = [digest(item.model_dump_json()) for item in self.references]
         if len(set(identities)) != len(identities):
             raise ValueError("duplicate_reference")
+        if len(set(self.page_urls)) != len(self.page_urls):
+            raise ValueError("duplicate_page_url")
+        for url in self.page_urls:
+            ReviewedPageURL(url=url)
         return self
 
 
@@ -49,6 +58,13 @@ class RouteArgs(Contract):
 class Quote(Contract):
     source_id: Text
     quote: Annotated[str, Field(min_length=2, max_length=300)]
+    start_offset: Annotated[int, Field(strict=True, ge=0)] | None = None
+
+    @model_validator(mode="after")
+    def not_blank(self):
+        if not self.quote.strip():
+            raise ValueError("quote_empty")
+        return self
 
 
 class Activity(Contract):

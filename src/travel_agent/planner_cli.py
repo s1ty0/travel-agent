@@ -35,6 +35,7 @@ def save_run(result, path: Path):
             "price_checked_on",
             "price_valid_until",
             "amap_cost_basis",
+            "page_reads",
         )
     }
     with closing(sqlite3.connect(path)) as db, db:

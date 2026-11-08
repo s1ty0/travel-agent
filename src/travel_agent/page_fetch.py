@@ -51,15 +51,18 @@ class PageQuote(Contract):
         return self
 
 
-class PageReadInput(Contract):
+class ReviewedPageURL(Contract):
     url: Annotated[str, Field(min_length=1, max_length=2048)]
-    quotes: Annotated[tuple[PageQuote, ...], Field(max_length=10)] = ()
 
     @model_validator(mode="after")
     def reviewed_url_only(self):
         if self.url not in {policy.url for policy in READ_POLICIES}:
             raise ValueError("page_url_not_reviewed")
         return self
+
+
+class PageReadInput(ReviewedPageURL):
+    quotes: Annotated[tuple[PageQuote, ...], Field(max_length=10)] = ()
 
 
 class FetchedPage(Contract):

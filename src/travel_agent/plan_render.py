@@ -87,6 +87,20 @@ def render_markdown(result):
                 + "。"
             )
     cost = result["service_cost"]
+    if result.get("page_reads"):
+        lines.extend(["", "## 网页读取依据", ""])
+        lines.append("正文来自供应商转换，来源身份、语义和日期尚未核实；不等于确认营业或可预约。")
+        for read in result["page_reads"]:
+            link = quote(read["read_policy"]["requested_url"], safe=":/?&=#%+@;,")
+            lines.append(f"- [请求网页]({link})；读取状态：{_escape(read['status'])}。")
+            if read["page"]:
+                lines.append(
+                    "  来源 ID："
+                    + _escape(read["page"]["source_id"])
+                    + "；获取时间："
+                    + _escape(read["page"]["retrieved_at"])
+                    + "。"
+                )
     estimated = Decimal(cost["estimated_upper"]) / 1000000
     cap = Decimal(cost["cap"]) / 1000000
     lines.extend(
