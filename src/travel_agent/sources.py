@@ -67,7 +67,15 @@ def public_url(value: str) -> str:
 
 
 def _json_request(
-    url, *, timeout, secret, method="POST", payload=None, params=None, transport=None
+    url,
+    *,
+    timeout,
+    secret,
+    method="POST",
+    payload=None,
+    params=None,
+    transport=None,
+    error_codes=None,
 ):
     try:
         with httpx.Client(
@@ -81,12 +89,14 @@ def _json_request(
                 headers={"Authorization": f"Bearer {secret}"} if method == "POST" else {},
             ) as response:
                 if response.status_code != 200:
-                    code = {
+                    codes = {
                         401: "authentication_failed",
                         402: "insufficient_balance",
                         403: "permission_denied",
                         429: "rate_limited",
-                    }.get(response.status_code, "upstream_error")
+                    }
+                    codes.update(error_codes or {})
+                    code = codes.get(response.status_code, "upstream_error")
                     raise ProviderError(code)
                 content = bytearray()
                 for chunk in response.iter_bytes():

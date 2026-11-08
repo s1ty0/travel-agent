@@ -15,6 +15,7 @@ class PriceCard:
     input_micro_cny_per_token: int = 2
     output_micro_cny_per_token: int = 8
     search_micro_cny_per_call: int = 5000
+    fetch_micro_cny_per_call: int = 5000
     amap_free_quota_only: bool = False
 
     def validate(self, model: str, today: date):
@@ -28,8 +29,16 @@ class PriceCard:
                 self.input_micro_cny_per_token,
                 self.output_micro_cny_per_token,
                 self.search_micro_cny_per_call,
+                self.fetch_micro_cny_per_call,
             )
         ):
+            raise ProviderError("invalid_price_card")
+
+    def validate_fetch(self, today: date):
+        # Fetch does not use the configured chat model or any token pricing.
+        if not self.checked_on <= today <= self.valid_until:
+            raise ProviderError("price_card_expired")
+        if type(self.fetch_micro_cny_per_call) is not int or self.fetch_micro_cny_per_call < 0:
             raise ProviderError("invalid_price_card")
 
 

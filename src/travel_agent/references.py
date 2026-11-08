@@ -99,8 +99,33 @@ class QuoteRequest(Contract):
         return self
 
 
-def check_quote(documents: tuple[ReferenceDocument, ...], request: QuoteRequest):
+def locate_quote(text: str, quote: str, start_offset: int | None = None):
     """Match exact text, not semantics. Offsets are Unicode code points, end-exclusive."""
+    if start_offset is not None:
+        matches = [start_offset] if text.startswith(quote, start_offset) else []
+    else:
+        matches = []
+        cursor = 0
+        while (index := text.find(quote, cursor)) >= 0:
+            matches.append(index)
+            cursor = index + 1
+    report = {
+        "status": "missing" if not matches else "ambiguous" if len(matches) > 1 else "matched",
+        "span": None,
+    }
+    if len(matches) == 1:
+        start = matches[0]
+        report["span"] = {
+            "start": start,
+            "end": start + len(quote),
+            "unit": "unicode_code_points",
+            "end_exclusive": True,
+            "line": text.count("\n", 0, start) + 1,
+        }
+    return report
+
+
+def check_quote(documents: tuple[ReferenceDocument, ...], request: QuoteRequest):
     doc = next((d for d in documents if d.source_id == request.source_id), None)
     report = {
         "source_id": request.source_id,
@@ -116,26 +141,7 @@ def check_quote(documents: tuple[ReferenceDocument, ...], request: QuoteRequest)
     if text is None:
         report["status"] = "link_only"
         return report
-    if request.start_offset is not None:
-        matches = (
-            [request.start_offset] if text.startswith(request.quote, request.start_offset) else []
-        )
-    else:
-        matches = []
-        cursor = 0
-        while (index := text.find(request.quote, cursor)) >= 0:
-            matches.append(index)
-            cursor = index + 1
-    report["status"] = "missing" if not matches else "ambiguous" if len(matches) > 1 else "matched"
-    if len(matches) == 1:
-        start = matches[0]
-        report["span"] = {
-            "start": start,
-            "end": start + len(request.quote),
-            "unit": "unicode_code_points",
-            "end_exclusive": True,
-            "line": text.count("\n", 0, start) + 1,
-        }
+    report.update(locate_quote(text, request.quote, request.start_offset))
     if request.at_date is not None:
         start, end = doc.material.valid_from, doc.material.valid_until
         if (start and request.at_date < start) or (end and request.at_date > end):
