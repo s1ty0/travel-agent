@@ -1,0 +1,63 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets/
+cookies/
+cookies*.json
+storage-state*.json
+auth-state*.json
+.auth/
+.codex/
+.agents/
+.aws/
+
+# Private runtime data, traces, evidence, checkpoints and exports
+data/
+runtime/
+logs/
+traces/
+checkpoints/
+artifacts/
+exports/
+*.log
+*.jsonl
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# JavaScript and build output
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+coverage/
+
+# Local editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
