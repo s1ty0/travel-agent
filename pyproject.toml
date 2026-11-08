@@ -25,6 +25,7 @@ dev = [
 [project.scripts]
 travel-agent = "travel_agent.cli:main"
 travel-agent-deepseek = "travel_agent.deepseek_cli:main"
+travel-agent-sources = "travel_agent.sources_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/travel_agent"]
@@ -36,6 +37,7 @@ include = ["/src", "/tests", "/scripts", "/docs", "/README.md", "/AGENT.md", "/A
 testpaths = ["tests"]
 addopts = "--basetemp=artifacts/pytest-temp"
 markers = ["smoke: offline critical-path checks", "regression: fixed input semantics"]
+filterwarnings = ["error::ResourceWarning", "error::pytest.PytestUnraisableExceptionWarning"]
 
 [tool.ruff]
 target-version = "py311"
