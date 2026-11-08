@@ -27,6 +27,7 @@
 | [首轮调研](docs/research/2026-11-08-landscape.md) | 同类产品、开源项目、接口与核验程度。 |
 | [ADR-0001](docs/decisions/0001-evidence-first-workflow.md) | 当前架构选择、替代方案和验证条件。 |
 | [开发日志](docs/devlogs/2026-11-08-bootstrap.md) | 本次实际操作、验证与未完成事项。 |
+| [M1 开发日志](docs/devlogs/2026-11-08-m1.md) | 离线模块、测试、安装包验证和远端状态。 |
 | [CHANGELOG.md](CHANGELOG.md) | 面向使用者的变更。 |
 | [测试门禁](docs/TESTING.md) | 本地检查命令、分层测试及正式上线条件。 |
 
