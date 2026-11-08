@@ -26,6 +26,7 @@ dev = [
 travel-agent = "travel_agent.cli:main"
 travel-agent-deepseek = "travel_agent.deepseek_cli:main"
 travel-agent-sources = "travel_agent.sources_cli:main"
+travel-agent-plan = "travel_agent.planner_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/travel_agent"]

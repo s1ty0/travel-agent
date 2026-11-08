@@ -197,12 +197,12 @@ def amap_key_from_env():
     return key
 
 
-def _amap(path, params, key, transport):
+def _amap(path, params, key, transport, timeout=30):
     if not key.strip() or any(c.isspace() for c in key):
         raise ProviderError("missing_or_invalid_amap_key")
     body = _json_request(
         "https://restapi.amap.com/v3/" + path,
-        timeout=30,
+        timeout=timeout,
         secret=key,
         method="GET",
         params={**params, "key": key, "output": "JSON"},
@@ -237,7 +237,9 @@ def _optional_text(value):
     return value[:500]
 
 
-def find_places(query: PlaceQuery | NearbyQuery, key: str, *, transport=None) -> SourceBatch:
+def find_places(
+    query: PlaceQuery | NearbyQuery, key: str, *, transport=None, timeout=30
+) -> SourceBatch:
     start = monotonic()
     params = {
         "keywords": query.keywords,
@@ -253,7 +255,7 @@ def find_places(query: PlaceQuery | NearbyQuery, key: str, *, transport=None) ->
     else:
         operation, path = "places", "place/text"
         params.update(city=query.city, citylimit="true")
-    body = _amap(path, params, key, transport)
+    body = _amap(path, params, key, transport, timeout)
     records = body.get("pois")
     if not isinstance(records, list):
         raise ProviderError("invalid_source_response")
@@ -306,13 +308,14 @@ def find_places(query: PlaceQuery | NearbyQuery, key: str, *, transport=None) ->
     )
 
 
-def walking_route(query: WalkingQuery, key: str, *, transport=None) -> SourceBatch:
+def walking_route(query: WalkingQuery, key: str, *, transport=None, timeout=30) -> SourceBatch:
     start = monotonic()
     body = _amap(
         "direction/walking",
         {"origin": query.origin.as_amap(), "destination": query.destination.as_amap()},
         key,
         transport,
+        timeout,
     )
     try:
         records = body["route"]["paths"]

@@ -38,7 +38,7 @@ def main():
         ),
     ]
     report = {
-        "stage": "M2_model_adapter",
+        "stage": "M2_single_agent_baseline",
         "production_release_ready": False,
         "started_at": datetime.now(UTC).isoformat(),
         "gates": [],
