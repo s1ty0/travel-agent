@@ -1,4 +1,4 @@
-"""Run all available M1 gates. This report is not production release approval."""
+"""Run all available offline gates. This report is not production release approval."""
 
 import json
 import subprocess
@@ -38,7 +38,7 @@ def main():
         ),
     ]
     report = {
-        "stage": "M1",
+        "stage": "M2_model_adapter",
         "production_release_ready": False,
         "started_at": datetime.now(UTC).isoformat(),
         "gates": [],

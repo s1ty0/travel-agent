@@ -7,7 +7,12 @@ name = "travel-agent"
 version = "0.1.0"
 description = "Evidence-based domestic travel planning assistant"
 requires-python = ">=3.11"
-dependencies = ["fastapi>=0.115,<1", "pydantic>=2.10,<3", "uvicorn>=0.30,<1"]
+dependencies = [
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "pydantic>=2.10,<3",
+    "uvicorn>=0.30,<1",
+]
 
 [dependency-groups]
 dev = [
@@ -19,6 +24,7 @@ dev = [
 
 [project.scripts]
 travel-agent = "travel_agent.cli:main"
+travel-agent-deepseek = "travel_agent.deepseek_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/travel_agent"]
