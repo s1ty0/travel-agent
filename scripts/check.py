@@ -34,6 +34,7 @@ def main():
         ),
         ("smoke", [python, "-m", "pytest", "-q", "-m", "smoke"]),
         ("regression", [python, "-m", "pytest", "-q", "-m", "regression"]),
+        ("planning_acceptance", [python, str(ROOT / "scripts" / "evaluate_planning.py")]),
         (
             "full_offline",
             [

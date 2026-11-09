@@ -36,6 +36,8 @@ def save_run(result, path: Path):
             "price_valid_until",
             "amap_cost_basis",
             "page_reads",
+            "replans",
+            "validation_attempts",
         )
     }
     metadata["claim_review_summary"] = (result.get("plan") or {}).get("claim_review_summary")
@@ -58,6 +60,7 @@ def main():
     parser = argparse.ArgumentParser(description="受控单Agent草案；每次服务预算最高2元，不执行购买")
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
+    parser.add_argument("--max-replans", type=int, choices=(0, 1), default=0)
     args = parser.parse_args()
     if not args.live:
         print('{"error":"live_flag_required"}', file=sys.stderr)
@@ -67,7 +70,10 @@ def main():
         if len(raw) > 64000:
             raise ValueError("input_too_long")
         data = PlanningInput.model_validate_json(raw)
-        limits = PlannerLimits(service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "200")))
+        limits = PlannerLimits(
+            service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "200")),
+            max_replans=args.max_replans,
+        )
         result = BaselineRunner(
             DeepSeekSettings.from_env(),
             amap_key_from_env(),

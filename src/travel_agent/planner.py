@@ -49,6 +49,9 @@ quote 必须逐字来自对应搜索 snippet，不能改写，不引用工具中
 需表达预约要求时，可在活动 claims 中提交 subject、predicate="reservation_required"、
 value(是否需要预约)、source_id、quote 和可选 start_offset；subject 使用地图返回的完整名称。
 主张由程序另查身份、完整段落语义和活动日期，不能自己宣布核实，也不能把需预约写成已预约。
+遵守 effective_constraints 中景点总数上限；同一来源ID重复参观只算一处景点，餐饮休息不计入。
+若 submit_plan 返回 revision_requested，只根据程序给出的时间/数量冲突修改后重新提交。
+修正不得改变用户约束、来源、营业/预约结论或工具权限，不添加新的查询请求。
 没有资料支持的营业、票务、费用和住宿信息留待核实，不输出自由文本或其他字段。
 所有产物均是草案，不调用购买、付款、预约、发消息或任意URL。
 """
@@ -94,7 +97,15 @@ def tool_definitions(page_urls=()):
 
 
 def validate_proposal(
-    proposal, request, batches, route_bindings, documents=(), pages=(), *, today=None
+    proposal,
+    request,
+    batches,
+    route_bindings,
+    documents=(),
+    pages=(),
+    *,
+    today=None,
+    constraints=None,
 ):
     """Check traceability/intervals deterministically, without certifying source truth."""
     records = {hit.source_id: hit for batch in batches for hit in batch.hits}
@@ -118,6 +129,17 @@ def validate_proposal(
     all_reviews = []
     all_comparisons = []
     activities = sorted(proposal.activities, key=lambda item: (item.day, item.start_minute))
+    limit = (constraints or {}).get("max_sightseeing_places")
+    sightseeing_count = len({a.place_source_id for a in activities if a.kind == "sightseeing"})
+    if limit is not None:
+        checks.append(
+            {
+                "rule": "sightseeing_place_limit",
+                "status": "pass" if sightseeing_count <= limit else "fail",
+                "maximum": limit,
+                "actual": sightseeing_count,
+            }
+        )
     days = request.days
     if {a.day for a in activities} != set(range(1, days + 1)):
         checks.append({"rule": "day_coverage", "status": "fail"})
@@ -292,6 +314,7 @@ def validate_proposal(
         "travel_budget": budget_report,
         "facts_verified": False,
         "missing_fields": list(request.missing_fields),
+        "constraints": constraints or {},
         "claim_review_summary": summarize_reviews(all_reviews),
         "cross_source_summary": summarize_comparisons(all_comparisons),
         "status": "invalid_plan" if any(c["status"] == "fail" for c in checks) else "draft",
@@ -328,6 +351,10 @@ class BaselineRunner:
         allowed_tools = tool_models(data.page_urls)
         run_id = str(uuid4())
         model_calls = source_calls = 0
+        replans = 0
+        validation_attempts = []
+        repair_pending = False
+        constraints = data.effective_constraints()
         proposal_result = None
         issue = None
 
@@ -368,6 +395,8 @@ class BaselineRunner:
                 "service_cost": ledger.summary(),
                 "model_calls": 0,
                 "source_calls": 0,
+                "replans": 0,
+                "validation_attempts": [],
                 "elapsed_ms": elapsed(),
             }
         messages = [
@@ -393,6 +422,13 @@ class BaselineRunner:
                 ensure_ascii=False,
             )
         seen_call_ids = set()
+        messages[1]["content"] = json.dumps(
+            {
+                "user_request": json.loads(messages[1]["content"]),
+                "effective_constraints": constraints,
+            },
+            ensure_ascii=False,
+        )
         try:
             self.prices.validate(self.settings.model, self.today)
             while model_calls < self.limits.max_model_calls:
@@ -406,7 +442,13 @@ class BaselineRunner:
                     "stream": False,
                     "max_tokens": self.limits.max_output_tokens,
                 }
-                if model_calls == self.limits.max_model_calls - 1 and batches:
+                if repair_pending or (model_calls == self.limits.max_model_calls - 1 and batches):
+                    if repair_pending:
+                        payload["tools"] = [
+                            tool
+                            for tool in payload["tools"]
+                            if tool["function"]["name"] == "submit_plan"
+                        ]
                     payload["tool_choice"] = {
                         "type": "function",
                         "function": {"name": "submit_plan"},
@@ -499,6 +541,10 @@ class BaselineRunner:
                         and len(clean_calls) > 1
                     ):
                         raise ProviderError("submit_must_be_separate")
+                    if repair_pending and any(
+                        c["function"]["name"] != "submit_plan" for c in clean_calls
+                    ):
+                        raise ProviderError("repair_submit_only")
                     messages.append(
                         {"role": "assistant", "content": None, "tool_calls": clean_calls}
                     )
@@ -586,10 +632,20 @@ class BaselineRunner:
                             if isinstance(hit, PlaceHit)
                         }
                         activities = sorted(args.activities, key=lambda a: (a.day, a.start_minute))
+                        count_conflict = (
+                            self.limits.max_replans > replans
+                            and model_calls < self.limits.max_model_calls
+                            and constraints["max_sightseeing_places"] is not None
+                            and len(
+                                {a.place_source_id for a in activities if a.kind == "sightseeing"}
+                            )
+                            > constraints["max_sightseeing_places"]
+                        )
                         for first, second in zip(activities, activities[1:], strict=False):
                             pair = (first.place_source_id, second.place_source_id)
                             if (
-                                first.day != second.day
+                                count_conflict
+                                or first.day != second.day
                                 or pair[0] == pair[1]
                                 or pair in routes
                                 or source_calls >= self.limits.max_source_calls
@@ -638,8 +694,66 @@ class BaselineRunner:
                             if result.hits:
                                 routes[pair] = result.hits[0]
                         proposal_result = validate_proposal(
-                            args, request, batches, routes, documents, pages, today=self.today
+                            args,
+                            request,
+                            batches,
+                            routes,
+                            documents,
+                            pages,
+                            today=self.today,
+                            constraints=constraints,
                         )
+                        failed = [c for c in proposal_result["checks"] if c["status"] == "fail"]
+                        validation_attempts.append(
+                            {
+                                "attempt": len(validation_attempts) + 1,
+                                "proposal_sha256": fingerprint(args.model_dump_json()),
+                                "status": proposal_result["status"],
+                                "failed_rules": sorted({c["rule"] for c in failed}),
+                                "model_calls": model_calls,
+                                "source_calls": source_calls,
+                            }
+                        )
+                        repairable = {
+                            "time_overlap",
+                            "transfer_duration",
+                            "daily_activity_limit",
+                            "sightseeing_place_limit",
+                            "day_coverage",
+                        }
+                        if (
+                            failed
+                            and {c["rule"] for c in failed} <= repairable
+                            and replans < self.limits.max_replans
+                            and model_calls < self.limits.max_model_calls
+                        ):
+                            replans += 1
+                            repair_pending = True
+                            # Only server-defined checks, counts and constraints; no model text.
+                            feedback = {
+                                "status": "revision_requested",
+                                "failed_checks": failed,
+                                "effective_constraints": constraints,
+                                "remaining_replans": self.limits.max_replans - replans,
+                            }
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": call["id"],
+                                    "content": json.dumps(feedback, ensure_ascii=False),
+                                }
+                            )
+                            events.append(
+                                {
+                                    "step": len(events) + 1,
+                                    "operation": "replan",
+                                    "status": "requested",
+                                    "elapsed_ms": elapsed(),
+                                    "failed_rules": sorted({c["rule"] for c in failed}),
+                                }
+                            )
+                        else:
+                            repair_pending = False
                         break
                     if args_hash in cache:
                         result = cache[args_hash]
@@ -739,7 +853,7 @@ class BaselineRunner:
                             "content": result.model_dump_json(),
                         }
                     )
-                if proposal_result is not None:
+                if proposal_result is not None and not repair_pending:
                     break
             if proposal_result is None:
                 issue = "model_call_limit"
@@ -753,7 +867,11 @@ class BaselineRunner:
             "price_checked_on": self.prices.checked_on.isoformat(),
             "price_valid_until": self.prices.valid_until.isoformat(),
             "amap_cost_basis": "user_confirmed_free_quota_no_paid_fallback",
-            "status": proposal_result["status"] if proposal_result else "stopped",
+            "status": "stopped"
+            if issue
+            else proposal_result["status"]
+            if proposal_result
+            else "stopped",
             "issue": issue,
             "plan": proposal_result,
             "events": events,
@@ -763,6 +881,8 @@ class BaselineRunner:
             "service_cost": ledger.summary(),
             "model_calls": model_calls,
             "source_calls": source_calls,
+            "replans": replans,
+            "validation_attempts": validation_attempts,
             "elapsed_ms": elapsed(),
             "actual_billed_cny": None,
             "created_at": datetime.now(UTC).isoformat(),

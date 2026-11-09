@@ -1,5 +1,6 @@
 """Single-city draft contracts. Suggested times are not opening hours or reservations."""
 
+import re
 from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
@@ -10,9 +11,14 @@ from .page_fetch import ReviewedPageURL
 from .references import ReferenceInput, digest
 
 
+class PlanningConstraints(Contract):
+    max_sightseeing_places: Annotated[int, Field(strict=True, ge=1, le=9)] | None = None
+
+
 class PlanningInput(Contract):
     city: Text
     trip: IntakeInput
+    constraints: PlanningConstraints = PlanningConstraints()
     references: Annotated[tuple[ReferenceInput, ...], Field(max_length=5)] = ()
     page_urls: Annotated[
         tuple[str, ...],
@@ -32,6 +38,23 @@ class PlanningInput(Contract):
             ReviewedPageURL(url=url)
         return self
 
+    def effective_constraints(self):
+        explicit = self.constraints.max_sightseeing_places
+        literal_single = any(
+            re.fullmatch(
+                r"(?:只(?:去|安排|游览)|最多(?:去|安排|游览)?)[一1][处个](?:景点|景区)[。！!]?",
+                item.strip(),
+            )
+            for item in self.trip.preferences
+        )
+        values = [value for value in (explicit, 1 if literal_single else None) if value is not None]
+        return {
+            "max_sightseeing_places": min(values) if values else None,
+            "explicit_limit": explicit,
+            "literal_single_sight_preference": literal_single,
+            "other_preferences": "not_fully_validated",
+        }
+
 
 class PlannerLimits(Contract):
     service_cap_minor: Annotated[int, Field(strict=True, ge=1, le=200)] = 200
@@ -39,6 +62,7 @@ class PlannerLimits(Contract):
     max_source_calls: Annotated[int, Field(strict=True, ge=1, le=6)] = 5
     max_elapsed_seconds: Annotated[int, Field(strict=True, ge=1, le=120)] = 90
     max_output_tokens: Annotated[int, Field(strict=True, ge=64, le=1024)] = 1024
+    max_replans: Annotated[int, Field(strict=True, ge=0, le=1)] = 0
 
 
 class SearchArgs(Contract):

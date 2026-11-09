@@ -1,4 +1,4 @@
-"""Frozen synthetic acceptance, with scripted providers and program-independent expected outcomes."""
+"""Frozen synthetic acceptance using scripted providers and fixed expected outcomes."""
 
 import argparse
 import hashlib
@@ -80,7 +80,9 @@ def run_case(case):
             )
             if two and not (scenario == "count_repair" and index >= 2):
                 start = 590 if scenario == "overlap_unfixed" else 605
-                if scenario in ("count_repair", "count_no_repair", "ambiguous_route") or index >= 2:
+                if scenario in ("count_repair", "count_no_repair", "ambiguous_route") or (
+                    index >= 2 and scenario != "overlap_unfixed"
+                ):
                     start = 650
                 activities.append(
                     {"day": 1, "place_source_id": B, "start_minute": start, "end_minute": 720}

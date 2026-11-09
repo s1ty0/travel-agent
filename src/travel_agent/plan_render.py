@@ -17,6 +17,14 @@ def _time(value):
 def render_markdown(result):
     lines = ["# 旅行规划草案", "", "建议时间未经营业、预约或票务核验。当前没有执行购买。", ""]
     plan = result.get("plan")
+    if result.get("status") == "stopped" and plan:
+        lines.append(
+            "修正过程已停止；下方保留最近一次未通过方案。原因："
+            + _escape(result.get("issue") or "unknown")
+            + "。"
+        )
+    if result.get("replans", 0):
+        lines.append(f"本次已请求 {result['replans']} 次有限修正，沿用原服务预算和调用上限。")
     if not plan:
         lines.extend(
             ["本次未生成可用草案。", "", "原因：" + _escape(result.get("issue") or "unknown")]
@@ -24,6 +32,9 @@ def render_markdown(result):
     else:
         if plan["status"] == "invalid_plan":
             lines.extend(["校验发现冲突，以下安排不能作为可执行行程。", ""])
+        limit = plan.get("constraints", {}).get("max_sightseeing_places")
+        if limit is not None:
+            lines.append(f"本次景点上限：全程最多 {limit} 处不同景点，按地点来源 ID 计数。")
         day = None
         for activity in plan["activities"]:
             if activity["day"] != day:
