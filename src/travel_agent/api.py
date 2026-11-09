@@ -3,6 +3,7 @@
 from fastapi import FastAPI, HTTPException
 
 from .budget import check_budget
+from .claim_review import ClaimInspection, inspect_claims
 from .models import IntakeInput, LedgerInput, TripRequest, ValidationReport
 from .parsing import intake
 from .references import EvidenceInspection, import_reference, inspection_report
@@ -36,3 +37,11 @@ def inspect_references(data: EvidenceInspection):
     if len({doc.source_id for doc in documents}) != len(documents):
         raise HTTPException(422, "资料重复，请检查来源。")
     return inspection_report(documents, data.quotes)
+
+
+@app.post("/v1/claims/inspect")
+def inspect_reservation_claims(data: ClaimInspection):
+    try:
+        return inspect_claims(data)
+    except ValueError:
+        raise HTTPException(422, "主张或资料无法检查，请核对来源与内容。") from None

@@ -54,6 +54,7 @@ def make_runner(
     next_tool=None,
     unknown_second_usage=False,
     omit_read=False,
+    claim_value=None,
     limits=None,
     prices=None,
     today=DAY,
@@ -113,6 +114,16 @@ def make_runner(
                         "end_minute": 720,
                     }
                 )
+            if claim_value is not None:
+                activities[0]["claims"] = [
+                    {
+                        "subject": "合成地点甲",
+                        "predicate": "reservation_required",
+                        "value": claim_value,
+                        "source_id": page_id,
+                        "quote": citation_quote,
+                    }
+                ]
             calls = [call("submit_plan", {"activities": activities}, "submit")]
         return httpx.Response(
             200,
@@ -377,3 +388,58 @@ def test_planner_cli_audit_has_page_provenance_without_body_or_quotes(
     assert metadata["page_reads"][0]["parent_run_id"] == result["run_id"]
     assert metadata["service_cost"]["estimated_upper"] == 11200
     assert all(value not in raw for value in (SECRET, CONTENT, QUOTE, "不应存入审计的标题"))
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_reservation_claims_compare_full_body_rule_and_keep_unknown_identity(value):
+    runner, counts = make_runner(
+        content="合成地点甲实行“全员预约机制”", citation_quote="全员预约机制", claim_value=value
+    )
+    result = runner.run(planning_input())
+    assert result["status"] == ("draft" if value else "invalid_plan")
+    assert counts["model"] == 2 and counts["source"] == 3
+    reviewed = result["plan"]["activities"][0]["claim_reviews"][0]
+    assert reviewed["semantics"]["status"] == ("supported" if value else "contradicted")
+    assert reviewed["date"]["status"] == "travel_date_missing"
+    assert reviewed["subject_binding"] == "matched_name_only"
+    assert reviewed["identity"]["content_origin_verified"] is False
+    assert reviewed["facts_verified"] is False
+    summary = result["plan"]["claim_review_summary"]
+    assert summary["total"] == 1 and summary["verified_facts"] == 0
+    rendered = render_markdown(result)
+    assert "不表示已预约或有名额" in rendered
+    assert ("待核实" if value else "引用证据被拒绝") in rendered
+
+
+def test_activity_date_checks_source_range_without_using_retrieval_or_publication_day():
+    runner, _ = make_runner(
+        content="2026-11-01至2026-11-09，合成地点甲须预约。",
+        citation_quote="须预约",
+        claim_value=True,
+    )
+    request = PlanningInput.model_validate(
+        {
+            **planning_input().model_dump(mode="json"),
+            "trip": {"destination": "南京", "days": 1, "start_date": "2026-11-10"},
+        }
+    )
+    result = runner.run(request)
+    assert result["status"] == "invalid_plan"
+    reviewed = result["plan"]["activities"][0]["claim_reviews"][0]
+    assert reviewed["date"]["status"] == "outside_textual_range"
+    assert reviewed["date"]["at_date"] == "2026-11-10"
+
+
+def test_claim_summary_audit_omits_subject_quote_and_whole_body(tmp_path):
+    from travel_agent.planner_cli import save_run
+
+    runner, _ = make_runner(content="合成地点甲须预约。", citation_quote="须预约", claim_value=True)
+    result = runner.run(planning_input())
+    path = tmp_path / "claim-audit.sqlite3"
+    save_run(result, path)
+    with closing(sqlite3.connect(path)) as db:
+        raw = db.execute("SELECT metadata_json FROM planning_runs").fetchone()[0]
+    saved = json.loads(raw)["claim_review_summary"]
+    assert saved["total"] == saved["needs_review"] == 1
+    assert saved["records"][0]["review_sha256"]
+    assert all(text not in raw for text in ("合成地点甲", "须预约", 'content":', SECRET))

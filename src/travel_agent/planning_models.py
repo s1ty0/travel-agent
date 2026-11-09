@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
+from .claim_review import FactClaim
 from .models import Contract, IntakeInput, Text
 from .page_fetch import ReviewedPageURL
 from .references import ReferenceInput, digest
@@ -74,6 +75,7 @@ class Activity(Contract):
     end_minute: Annotated[int, Field(strict=True, ge=1, le=1440)]
     kind: Literal["sightseeing", "meal", "rest"] = "sightseeing"
     citations: Annotated[tuple[Quote, ...], Field(max_length=3)] = ()
+    claims: Annotated[tuple[FactClaim, ...], Field(max_length=3)] = ()
 
     @model_validator(mode="after")
     def positive_duration(self):

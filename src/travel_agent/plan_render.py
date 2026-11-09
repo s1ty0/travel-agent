@@ -33,6 +33,19 @@ def render_markdown(result):
             lines.append(f"- {interval}：{_escape(activity['place_name'])}。")
             if activity["address"]:
                 lines.append("  地址：" + _escape(activity["address"]) + "。")
+            for claim, review in zip(
+                activity.get("claims", []), activity.get("claim_reviews", []), strict=False
+            ):
+                value = "需要预约" if claim["value"] else "无需预约"
+                state = "引用证据被拒绝" if review["status"] == "rejected_evidence" else "待核实"
+                lines.append(f"  预约要求主张：{value}（{state}；不表示已预约或有名额）。")
+                lines.append(
+                    "  文本支持："
+                    + _escape(review["semantics"]["status"])
+                    + "；日期范围："
+                    + _escape(review["date"]["status"])
+                    + "；来源身份未认证。"
+                )
         lines.extend(
             [
                 "",
