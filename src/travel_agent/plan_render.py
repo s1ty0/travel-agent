@@ -46,6 +46,19 @@ def render_markdown(result):
                     + _escape(review["date"]["status"])
                     + "；来源身份未认证。"
                 )
+            for comparison in activity.get("evidence_comparisons", []):
+                messages = {
+                    "conflict": "资料对出行日的预约要求有明确文字冲突，核实后再采用。",
+                    "potential_conflict": "预约资料说法不一致，适用日期不充分，需要核实。",
+                    "different_textual_periods": "不同说法注明了不同适用时段，需先确认出行日。",
+                    "no_detected_conflict": "有限句式内未发现适用冲突，仍需核实来源和规则。",
+                    "insufficient": "缺少足以比较本次预约要求的正文依据，不能据此确认要求。",
+                    "incomplete": "资料比较未完整完成，不能据此确认要求。",
+                }
+                lines.append("  多份资料核查：" + messages[comparison["status"]])
+                if not comparison["complete_within_bounds"]:
+                    lines.append("  资料比较未完整完成，仍可能有未检查的信息。")
+                lines.append("  引用数量不代表独立证明，现有证据仍需核实。")
         lines.extend(
             [
                 "",

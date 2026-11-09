@@ -443,3 +443,59 @@ def test_claim_summary_audit_omits_subject_quote_and_whole_body(tmp_path):
     assert saved["total"] == saved["needs_review"] == 1
     assert saved["records"][0]["review_sha256"]
     assert all(text not in raw for text in ("合成地点甲", "须预约", 'content":', SECRET))
+
+
+@pytest.mark.parametrize("shared", [True, False])
+def test_comparison_sees_unselected_shared_evidence_but_respects_private_imports(shared):
+    from travel_agent.references import ReferenceInput, import_reference
+
+    other = ReferenceInput(
+        title="另份合成规则", text="合成地点甲无需预约。", allow_model_use=shared
+    )
+    runner, counts = make_runner(
+        content="合成地点甲须预约。", citation_quote="须预约", claim_value=True
+    )
+    request = PlanningInput(
+        city="南京", trip=planning_input().trip, page_urls=(URL,), references=(other,)
+    )
+    result = runner.run(request)
+    assert result["status"] == "draft"
+    assert counts["model"] == 2 and counts["source"] == 3
+    comparison = result["plan"]["activities"][0]["evidence_comparisons"][0]
+    assert comparison["status"] == ("potential_conflict" if shared else "no_detected_conflict")
+    source_ids = {item["source_id"] for item in comparison["source_reports"]}
+    assert (import_reference(other).source_id in source_ids) == shared
+    assert comparison["independent_confirmations"] == 0
+
+
+def test_cross_source_conflict_is_displayed_and_only_fingerprints_enter_audit(tmp_path):
+    from travel_agent.planner_cli import save_run
+    from travel_agent.references import ReferenceInput
+
+    runner, _ = make_runner(
+        content="2026-11-01至2026-11-30，合成地点甲须预约。",
+        citation_quote="须预约",
+        claim_value=True,
+    )
+    other = ReferenceInput(
+        title="另份合成规则",
+        text="2026-11-01至2026-11-30，合成地点甲无需预约。",
+        allow_model_use=True,
+    )
+    request = PlanningInput(
+        city="南京",
+        trip={"destination": "南京", "days": 1, "start_date": "2026-11-10"},
+        page_urls=(URL,),
+        references=(other,),
+    )
+    result = runner.run(request)
+    assert result["plan"]["cross_source_summary"]["conflicts"] == 1
+    assert "明确文字冲突" in render_markdown(result)
+    assert result["plan"]["facts_verified"] is False
+    path = tmp_path / "cross-audit.sqlite3"
+    save_run(result, path)
+    with closing(sqlite3.connect(path)) as db:
+        raw = db.execute("SELECT metadata_json FROM planning_runs").fetchone()[0]
+    summary = json.loads(raw)["cross_source_summary"]
+    assert summary["conflicts"] == 1 and summary["records"][0]["comparison_sha256"]
+    assert all(text not in raw for text in ("合成地点甲", "无需预约", "须预约", SECRET))

@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from .budget import check_budget
 from .claim_review import EvidenceText, review_claim, summarize_reviews
 from .deepseek import DeepSeekSettings, ProviderError
+from .evidence_compare import compare_claim_evidence, summarize_comparisons
 from .models import CostItem, LedgerInput
 from .page_fetch import PageReadInput, ReviewedPageURL
 from .page_fetch import read_page as read_provider_page
@@ -115,6 +116,7 @@ def validate_proposal(
     )
     checks, rendered = [], []
     all_reviews = []
+    all_comparisons = []
     activities = sorted(proposal.activities, key=lambda item: (item.day, item.start_minute))
     days = request.days
     if {a.day for a in activities} != set(range(1, days + 1)):
@@ -191,6 +193,19 @@ def validate_proposal(
             for claim in activity.claims
         ]
         all_reviews.extend(reviews)
+        comparisons = compare_claim_evidence(
+            activity.claims, evidence, at_date=at_date, expected_subject=place.name
+        )
+        all_comparisons.extend(comparisons)
+        checks.extend(
+            {
+                "rule": "cross_source_consistency",
+                "status": "unknown",
+                "comparison_sha256": comparison["comparison_sha256"],
+                "comparison_status": comparison["status"],
+            }
+            for comparison in comparisons
+        )
         checks.extend(
             {
                 "rule": "claim_evidence_review",
@@ -209,6 +224,7 @@ def validate_proposal(
                 "time_kind": "suggested",
                 "facts_verified": False,
                 "claim_reviews": reviews,
+                "evidence_comparisons": comparisons,
             }
         )
     for first, second in zip(activities, activities[1:], strict=False):
@@ -277,6 +293,7 @@ def validate_proposal(
         "facts_verified": False,
         "missing_fields": list(request.missing_fields),
         "claim_review_summary": summarize_reviews(all_reviews),
+        "cross_source_summary": summarize_comparisons(all_comparisons),
         "status": "invalid_plan" if any(c["status"] == "fail" for c in checks) else "draft",
     }
 

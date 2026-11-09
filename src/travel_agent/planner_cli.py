@@ -39,6 +39,7 @@ def save_run(result, path: Path):
         )
     }
     metadata["claim_review_summary"] = (result.get("plan") or {}).get("claim_review_summary")
+    metadata["cross_source_summary"] = (result.get("plan") or {}).get("cross_source_summary")
     with closing(sqlite3.connect(path)) as db, db:
         db.execute(
             "CREATE TABLE IF NOT EXISTS planning_runs "

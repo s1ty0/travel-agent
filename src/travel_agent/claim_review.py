@@ -146,6 +146,58 @@ def _date_report(rule, at_date):
     return result
 
 
+def _has_refutation(text, blocks, subject):
+    refutation = re.search(
+        r"(?:上句|下句|上述|以下|该(?:预约)?要求).{0,16}"
+        r"(?:不实|谣言|误传|错误|已废止|已取消|已失效|历史政策|不再适用)",
+        text,
+    )
+    named_refutation = any(
+        subject in block and re.search(r"辟谣|谣言|误传|历史政策|已废止|已取消", block)
+        for _, _, block in blocks
+    )
+    return bool(refutation or named_refutation)
+
+
+def extract_reservation_rules(source: EvidenceText, subject: str, at_date=None, *, limit=20):
+    """Extract declared rules with the single-claim grammar; never certify source truth."""
+    result = {
+        "rules": [],
+        "limit_reached": False,
+        "uninterpreted_reservation_blocks": 0,
+        "eligible_body": source.kind in ("provider_markdown", "user_text") and bool(source.text),
+    }
+    if not result["eligible_body"]:
+        return result
+    blocks = list(_blocks(source.text))
+    usable = not _has_refutation(source.text, blocks, subject)
+    seen = {}
+    for start, end, block in blocks:
+        rule = _parse_rule(block, subject)
+        if rule is None:
+            result["uninterpreted_reservation_blocks"] += int("预约" in block)
+            continue
+        dates = _date_report(rule, at_date)
+        key = (rule["value"], dates["valid_from"], dates["valid_until"], rule["date_issue"])
+        if key in seen:
+            seen[key]["occurrences"] += 1
+            continue
+        if len(seen) >= limit:
+            result["limit_reached"] = True
+            break
+        item = {
+            "value": rule["value"],
+            "date": dates,
+            "context_usable": usable,
+            "context_span": {"start": start, "end": end},
+            "context_sha256": digest(block),
+            "occurrences": 1,
+        }
+        result["rules"].append(item)
+        seen[key] = item
+    return result
+
+
 def review_claim(claim: FactClaim, evidence, *, at_date=None, expected_subject=None, today=None):
     today = today or date.today()
     source = next((item for item in evidence if item.source_id == claim.source_id), None)
@@ -230,16 +282,7 @@ def review_claim(claim: FactClaim, evidence, *, at_date=None, expected_subject=N
     if report["date"]["status"] == "outside_textual_range":
         report["status"] = "rejected_evidence"
     # Cross-paragraph refutations/history and conflicting explicit rules cannot be ignored.
-    refutation = re.search(
-        r"(?:上句|下句|上述|以下|该(?:预约)?要求).{0,16}"
-        r"(?:不实|谣言|误传|错误|已废止|已取消|已失效|历史政策|不再适用)",
-        source.text,
-    )
-    named_refutation = any(
-        claim.subject in text and re.search(r"辟谣|谣言|误传|历史政策|已废止|已取消", text)
-        for _, _, text in blocks
-    )
-    if refutation or named_refutation:
+    if _has_refutation(source.text, blocks, claim.subject):
         report["semantics"]["reason"] = "refutation_or_history_requires_review"
         return report
     for _, _, other_block in blocks:
@@ -293,6 +336,9 @@ class ClaimInspection(Contract):
 
 
 def inspect_claims(data: ClaimInspection):
+    # The comparison module reuses this module's grammar and contracts.
+    from .evidence_compare import compare_claim_evidence, summarize_comparisons
+
     documents = tuple(import_reference(item) for item in data.references)
     if len({doc.source_id for doc in documents}) != len(documents):
         raise ValueError("duplicate_reference")
@@ -301,4 +347,11 @@ def inspect_claims(data: ClaimInspection):
         for doc in documents
     )
     reviews = [review_claim(claim, evidence, at_date=data.at_date) for claim in data.claims]
-    return {"reviews": reviews, "summary": summarize_reviews(reviews), "network_calls": 0}
+    comparisons = compare_claim_evidence(data.claims, evidence, at_date=data.at_date)
+    return {
+        "reviews": reviews,
+        "summary": summarize_reviews(reviews),
+        "comparisons": comparisons,
+        "cross_source_summary": summarize_comparisons(comparisons),
+        "network_calls": 0,
+    }
