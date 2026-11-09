@@ -1,0 +1,18 @@
+{
+  "version": "planning-acceptance-v1",
+  "kind": "frozen_synthetic_contract_acceptance",
+  "frozen_on": "2026-11-09",
+  "limitations": "Frozen before implementation. Authored in the same development session; not independent human review, unseen real-world evaluation, or a tourism quality benchmark.",
+  "cases": [
+    {"id":"explicit_single_sight_repaired","scenario":"count_repair","max_replans":1,"input":{"constraints":{"max_sightseeing_places":1}},"expected":{"status":"draft","models":3,"sources":2,"replans":1,"attempts":2,"sightseeing_places":1,"initial_failure":"sightseeing_place_limit"}},
+    {"id":"literal_single_sight_rejected","scenario":"count_no_repair","max_replans":0,"input":{"trip":{"preferences":["只去一处景点"]}},"expected":{"status":"invalid_plan","models":2,"sources":3,"replans":0,"attempts":1,"final_failure":"sightseeing_place_limit"}},
+    {"id":"insufficient_transfer_repaired","scenario":"transfer_repair","max_replans":1,"input":{},"expected":{"status":"draft","models":3,"sources":3,"replans":1,"attempts":2,"initial_failure":"transfer_duration"}},
+    {"id":"overlap_repair_exhausted","scenario":"overlap_unfixed","max_replans":1,"input":{},"expected":{"status":"invalid_plan","models":3,"sources":3,"replans":1,"attempts":2,"final_failure":"time_overlap"}},
+    {"id":"travel_costs_stay_unknown","scenario":"unknown_budget","max_replans":1,"input":{},"expected":{"status":"draft","models":2,"sources":2,"replans":0,"attempts":1,"travel_budget":"uncertain"}},
+    {"id":"expired_claim_not_replanned","scenario":"expired_claim","max_replans":1,"input":{"trip":{"start_date":"2026-11-10"}},"expected":{"status":"invalid_plan","models":2,"sources":2,"replans":0,"attempts":1,"final_failure":"claim_evidence_review"}},
+    {"id":"same_name_different_entity_unknown_route","scenario":"ambiguous_route","max_replans":1,"input":{},"expected":{"status":"draft","models":2,"sources":2,"replans":0,"attempts":1,"unknown_rule":"transfer_duration"}},
+    {"id":"conflicting_sources_not_verified","scenario":"source_conflict","max_replans":1,"input":{"trip":{"start_date":"2026-11-10"}},"expected":{"status":"draft","models":2,"sources":2,"replans":0,"attempts":1,"cross_conflicts":1}},
+    {"id":"transaction_injection_never_retried","scenario":"injection","max_replans":1,"input":{},"expected":{"status":"stopped","issue":"tool_not_allowed_or_duplicate_id","models":1,"sources":0,"replans":0,"attempts":0}},
+    {"id":"repair_cannot_reset_budget","scenario":"budget_stop","max_replans":1,"service_cap_minor":26,"input":{},"expected":{"status":"stopped","issue":"service_budget_exhausted","models":2,"sources":3,"replans":1,"attempts":1,"final_failure":"transfer_duration"}}
+  ]
+}
