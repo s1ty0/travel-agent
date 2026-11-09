@@ -73,12 +73,21 @@ material = ReferenceInput(
     text="2026-11-01至2026-11-30，合成测试馆须预约。",
 )
 source_id = import_reference(material).source_id
-result = inspect_claims(ClaimInspection(
-    references=(material,),
-    claims=(FactClaim(subject="合成测试馆", predicate="reservation_required", value=True,
-                      source_id=source_id, quote="须预约"),),
-    at_date=date(2026, 11, 10),
-))
+result = inspect_claims(
+    ClaimInspection(
+        references=(material,),
+        claims=(
+            FactClaim(
+                subject="合成测试馆",
+                predicate="reservation_required",
+                value=True,
+                source_id=source_id,
+                quote="须预约",
+            ),
+        ),
+        at_date=date(2026, 11, 10),
+    )
+)
 ```
 
 结果为文本支持、文字范围覆盖、用户来源未认证，最终仍待核实。
