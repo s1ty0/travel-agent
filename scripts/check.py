@@ -10,13 +10,24 @@ from time import monotonic
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def format_command(root: Path, python: str):
+    # Explicit paths also cover new Markdown before Git tracking or staging.
+    # Only public documentation roots are included, not private runtime/artifact folders.
+    documents = sorted(
+        path.relative_to(root).as_posix()
+        for path in (*root.glob("*.md"), *(root / "docs").rglob("*.md"))
+        if path.is_file()
+    )
+    return [python, "-m", "ruff", "format", "--check", ".", *documents]
+
+
 def main():
     output = ROOT / "artifacts" / "qa"
     output.mkdir(parents=True, exist_ok=True)
     python = sys.executable
     gates = [
         ("lint", [python, "-m", "ruff", "check", "."]),
-        ("format", [python, "-m", "ruff", "format", "--check", "."]),
+        ("format", format_command(ROOT, python)),
         (
             "dependency_consistency",
             ["uv", "--cache-dir", str(ROOT / ".cache" / "uv"), "pip", "check", "--python", python],

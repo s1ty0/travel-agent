@@ -13,3 +13,5 @@ M1 使用 Python、Pydantic 和 FastAPI；uv 创建项目隔离环境并锁定�
 测试使用 20 条固定回归样例、业务边界断言、真实本地 HTTP 启动和 CLI 子进程。统一入口失败即停止；本地原始报告不进入 Public 仓库。
 
 安装后的 Starlette 对 httpx 的兼容路径给出弃用告警。查阅本地已安装的 `starlette/testclient.py` 后改用其首选 httpx2 测试依赖，不屏蔽警告；完整依赖版本见 `uv.lock`。依赖管理依据官方 [Pydantic 模型文档](https://docs.pydantic.dev/latest/concepts/models/) 与 [FastAPI 测试文档](https://fastapi.tiangolo.com/tutorial/testing/)，实际兼容性以本次运行结果为准。
+
+2026-11-09 补记：统一格式门禁显式纳入根目录和 `docs/` 的 `.md` 文件，避免新文档未跟踪时漏检 Python 示例。使用已有格式器和公开文档根目录，不新增 Git 发现依赖或扫描私有运行目录；真实未暂存文档和失败即停行为加入回归，原因与结果见 [本轮日志](../devlogs/2026-11-09-ci-markdown-guard.md)。
