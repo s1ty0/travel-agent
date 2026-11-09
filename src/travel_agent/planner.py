@@ -26,6 +26,7 @@ from .planning_models import (
     SearchArgs,
 )
 from .references import QuoteRequest, check_quote, digest, import_reference, locate_quote
+from .repair_scope import repair_mode, scope_feedback, scope_matches
 from .service_budget import PriceCard, ServiceBudget
 from .source_models import PlaceHit, PlaceQuery, SearchHit, SearchQuery, WalkingQuery
 from .sources import _json_request, find_places, fingerprint, search_web, walking_route
@@ -52,6 +53,8 @@ value(是否需要预约)、source_id、quote 和可选 start_offset；subject �
 遵守 effective_constraints 中景点总数上限；同一来源ID重复参观只算一处景点，餐饮休息不计入。
 若 submit_plan 返回 revision_requested，只根据程序给出的时间/数量冲突修改后重新提交。
 修正不得改变用户约束、来源、营业/预约结论或工具权限，不添加新的查询请求。
+遵守 repair_scope：纯时间冲突只能整体平移时段，保留活动、类型、停留时长、引用和主张。
+数量冲突只准删减原有活动或平移，不能改成餐饮/休息规避景点限制。
 没有资料支持的营业、票务、费用和住宿信息留待核实，不输出自由文本或其他字段。
 所有产物均是草案，不调用购买、付款、预约、发消息或任意URL。
 """
@@ -254,7 +257,17 @@ def validate_proposal(
             continue
         gap = second.start_minute - first.end_minute
         if gap < 0:
-            checks.append({"rule": "time_overlap", "status": "fail"})
+            overlap = {
+                "rule": "time_overlap",
+                "status": "fail",
+                "available_minutes": gap,
+                "origin_source_id": first.place_source_id,
+                "destination_source_id": second.place_source_id,
+            }
+            route = route_bindings.get((first.place_source_id, second.place_source_id))
+            if route is not None:
+                overlap["required_minutes"] = math.ceil(route.duration_seconds / 60) + 10
+            checks.append(overlap)
             continue
         if first.place_source_id == second.place_source_id:
             continue
@@ -354,6 +367,8 @@ class BaselineRunner:
         replans = 0
         validation_attempts = []
         repair_pending = False
+        repair_original = None
+        active_repair_mode = None
         constraints = data.effective_constraints()
         proposal_result = None
         issue = None
@@ -619,6 +634,9 @@ class BaselineRunner:
                             raise ProviderError("model_input_limit")
                         continue
                     if name == "submit_plan":
+                        scope_violation = repair_pending and not scope_matches(
+                            repair_original, args, active_repair_mode
+                        )
                         if not any(b.provider == "deepseek_search" for b in batches) or not any(
                             isinstance(h, PlaceHit) for b in batches for h in b.hits
                         ):
@@ -644,7 +662,8 @@ class BaselineRunner:
                         for first, second in zip(activities, activities[1:], strict=False):
                             pair = (first.place_source_id, second.place_source_id)
                             if (
-                                count_conflict
+                                scope_violation
+                                or count_conflict
                                 or first.day != second.day
                                 or pair[0] == pair[1]
                                 or pair in routes
@@ -703,6 +722,11 @@ class BaselineRunner:
                             today=self.today,
                             constraints=constraints,
                         )
+                        if scope_violation:
+                            proposal_result["checks"].append(
+                                {"rule": "repair_scope_violation", "status": "fail"}
+                            )
+                            proposal_result["status"] = "invalid_plan"
                         failed = [c for c in proposal_result["checks"] if c["status"] == "fail"]
                         validation_attempts.append(
                             {
@@ -712,6 +736,7 @@ class BaselineRunner:
                                 "failed_rules": sorted({c["rule"] for c in failed}),
                                 "model_calls": model_calls,
                                 "source_calls": source_calls,
+                                "repair_mode": active_repair_mode if repair_pending else None,
                             }
                         )
                         repairable = {
@@ -729,12 +754,15 @@ class BaselineRunner:
                         ):
                             replans += 1
                             repair_pending = True
+                            repair_original = args
+                            active_repair_mode = repair_mode(c["rule"] for c in failed)
                             # Only server-defined checks, counts and constraints; no model text.
                             feedback = {
                                 "status": "revision_requested",
                                 "failed_checks": failed,
                                 "effective_constraints": constraints,
                                 "remaining_replans": self.limits.max_replans - replans,
+                                "repair_scope": scope_feedback(args, active_repair_mode),
                             }
                             messages.append(
                                 {

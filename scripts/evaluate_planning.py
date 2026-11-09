@@ -30,7 +30,7 @@ def tool(name, arguments, call_id):
     }
 
 
-def run_case(case):
+def run_case(case, *, repair_transport=None, settings=None, today=None):
     scenario = case["scenario"]
     counters = {"models": 0, "sources": 0}
     payloads = []
@@ -59,6 +59,8 @@ def run_case(case):
         index = counters["models"]
         counters["models"] += 1
         payloads.append(json.loads(request.content))
+        if index >= 2 and repair_transport is not None:
+            return repair_transport.handle_request(request)
         if index == 0:
             calls = (
                 [tool("pay", {}, "unauthorized")]
@@ -85,7 +87,14 @@ def run_case(case):
                 ):
                     start = 650
                 activities.append(
-                    {"day": 1, "place_source_id": B, "start_minute": start, "end_minute": 720}
+                    {
+                        "day": 1,
+                        "place_source_id": B,
+                        "start_minute": start,
+                        "end_minute": 765
+                        if scenario in ("transfer_repair", "budget_stop") and index >= 2
+                        else 720,
+                    }
                 )
             if materials:
                 activities[0]["claims"] = [
@@ -155,11 +164,11 @@ def run_case(case):
     if case["max_replans"] and "max_replans" in PlannerLimits.model_fields:
         options["max_replans"] = case["max_replans"]
     runner = BaselineRunner(
-        DeepSeekSettings("synthetic-acceptance-key"),
+        settings or DeepSeekSettings("synthetic-acceptance-key"),
         "synthetic-amap-key",
         limits=PlannerLimits(**options),
         prices=PriceCard(amap_free_quota_only=True),
-        today=date(2026, 11, 9),
+        today=today or date(2026, 11, 9),
         model_transport=httpx.MockTransport(model),
         source_transport=httpx.MockTransport(source),
     )

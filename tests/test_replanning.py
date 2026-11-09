@@ -18,6 +18,7 @@ from travel_agent.source_models import SourceBatch
 def repairing_rounds():
     initial = proposal()
     initial["activities"][1]["start_minute"] = 605
+    initial["activities"][1]["end_minute"] = 665
     return [
         default_rounds()[0],
         [call("submit_plan", initial, "first")],
@@ -180,3 +181,72 @@ def test_cli_exposes_explicit_bounded_repair_switch(monkeypatch, capsys, tmp_pat
     monkeypatch.setattr("sys.stdin", io.StringIO(data().model_dump_json()))
     assert main() == 0 and selected["max_replans"] == 1
     assert json.loads(capsys.readouterr().out)["status"] == "draft"
+
+
+@pytest.mark.parametrize("change", ["drop", "duration", "kind", "day", "citation", "place"])
+def test_time_only_repair_cannot_change_original_non_time_scope(change):
+    rounds = repairing_rounds()
+    fixed = proposal()
+    if change == "drop":
+        fixed["activities"] = fixed["activities"][:1]
+    elif change == "duration":
+        fixed["activities"][1]["end_minute"] -= 10
+    elif change == "kind":
+        fixed["activities"][1]["kind"] = "meal"
+    elif change == "day":
+        fixed["activities"][1]["day"] = 2
+    elif change == "citation":
+        fixed["activities"][0]["citations"] = []
+    elif change == "place":
+        fixed["activities"][1]["place_source_id"] = A
+    rounds[2] = [call("submit_plan", fixed, "changed")]
+    runner, counts = make_runner(rounds, limits=PlannerLimits(max_replans=1))
+    result = runner.run(data())
+    assert result["status"] == "invalid_plan"
+    assert "repair_scope_violation" in result["validation_attempts"][-1]["failed_rules"]
+    assert counts["source"] == 3
+    assert result["validation_attempts"][-1]["repair_mode"] == "shift_times_only"
+
+
+def test_overlap_feedback_includes_known_required_transfer_time():
+    rounds = repairing_rounds()
+    initial = proposal()
+    initial["activities"][1].update(start_minute=590, end_minute=650)
+    rounds[1] = [call("submit_plan", initial, "overlap")]
+    runner, counts = make_runner(rounds, limits=PlannerLimits(max_replans=1))
+    result = runner.run(data())
+    assert result["status"] == "draft"
+    feedback = json.loads(counts["payloads"][2]["messages"][-1]["content"])
+    check = next(item for item in feedback["failed_checks"] if item["rule"] == "time_overlap")
+    assert check["available_minutes"] == -10 and check["required_minutes"] == 30
+    assert feedback["repair_scope"]["mode"] == "shift_times_only"
+    assert [item["duration_minutes"] for item in feedback["repair_scope"]["activities"]] == [60, 60]
+
+
+@pytest.mark.parametrize("change", ["remove", "reclassify", "duplicate"])
+def test_quantity_repair_can_remove_but_cannot_reclassify_or_duplicate(change):
+    initial = proposal()
+    fixed = proposal()
+    if change == "remove":
+        fixed["activities"] = fixed["activities"][:1]
+    elif change == "reclassify":
+        fixed["activities"][1]["kind"] = "meal"
+    else:
+        fixed["activities"] = [fixed["activities"][0], dict(fixed["activities"][0])]
+        fixed["activities"][1].update(start_minute=650, end_minute=710)
+    rounds = [
+        default_rounds()[0],
+        [call("submit_plan", initial, "quantity")],
+        [call("submit_plan", fixed, "quantity-fixed")],
+    ]
+    request = PlanningInput.model_validate(
+        {**data().model_dump(), "constraints": {"max_sightseeing_places": 1}}
+    )
+    runner, _ = make_runner(rounds, limits=PlannerLimits(max_replans=1))
+    result = runner.run(request)
+    assert result["validation_attempts"][-1]["repair_mode"] == "remove_or_shift_only"
+    if change == "remove":
+        assert result["status"] == "draft"
+    else:
+        assert result["status"] == "invalid_plan"
+        assert "repair_scope_violation" in result["validation_attempts"][-1]["failed_rules"]
