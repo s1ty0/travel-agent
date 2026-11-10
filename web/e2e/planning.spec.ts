@@ -50,7 +50,9 @@ test("homepage layout and unavailable service", async ({ page }) => {
     route.fulfill({ status: 503, json: { error: "backend_unavailable" } }),
   );
   await page.goto("/");
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "规划服务暂未连接" }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
