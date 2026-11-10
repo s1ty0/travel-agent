@@ -205,6 +205,8 @@ export default function Planner() {
       setTask(created);
       setAsked(true);
       setTaskId(created.task_id);
+      setPollingPaused(false);
+      setError("");
       sessionStorage.setItem("travel_task", created.task_id);
       requestId.current = null;
       if (created.state !== "running") {
