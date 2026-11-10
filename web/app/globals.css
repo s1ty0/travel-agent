@@ -117,7 +117,7 @@ svg {
 }
 .product-label {
   font-size: 13px;
-  color: #7b847b;
+  color: #5f6b60;
   letter-spacing: 1px;
 }
 .topbar-right {
@@ -128,7 +128,7 @@ svg {
   font-size: 12px;
 }
 .preview-label {
-  color: #898e80;
+  color: #5f6b60;
   border: 1px solid #e3e6d8;
   border-radius: 6px;
   padding: 3px 8px;
@@ -137,7 +137,7 @@ svg {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #91958d;
+  color: #5f6b60;
 }
 .dot {
   display: inline-block;
@@ -164,7 +164,7 @@ svg {
 .eyebrow {
   font-size: 10px;
   letter-spacing: 2px;
-  color: #8d987a;
+  color: #5f704e;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -186,7 +186,7 @@ h1 span {
   color: #6a8058;
 }
 .intro p {
-  color: #8a9186;
+  color: #606d61;
   font-size: 13px;
   letter-spacing: 0.3px;
 }
@@ -194,7 +194,7 @@ h1 span {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #a5ae96;
+  color: #657556;
   font-size: 11px;
   border-left: 1px solid var(--line);
   padding: 0 28px;
@@ -202,7 +202,7 @@ h1 span {
 }
 .intro-note strong {
   font-size: 13px;
-  color: #738269;
+  color: #5f704e;
   font-weight: 400;
 }
 .mobile-break {
@@ -266,7 +266,7 @@ h1 span {
   font-weight: 500;
 }
 .assistant-greeting p {
-  color: #87917e;
+  color: #5f6b60;
   font-size: 12px;
   margin-top: 5px;
   line-height: 1.9;
@@ -294,7 +294,7 @@ h1 span {
   line-height: 1.9;
 }
 .message-form textarea::placeholder {
-  color: #a4ab99;
+  color: #65715f;
 }
 .message-form textarea:focus-visible {
   outline: none;
@@ -304,7 +304,7 @@ h1 span {
   justify-content: space-between;
   align-items: center;
   font-size: 10px;
-  color: #b3b9a6;
+  color: #687260;
 }
 .send-button {
   width: 31px;
@@ -320,7 +320,7 @@ h1 span {
 }
 .inspiration > span {
   font-size: 11px;
-  color: #9aa28d;
+  color: #637154;
 }
 .inspiration button {
   width: 100%;
@@ -334,7 +334,7 @@ h1 span {
   margin-top: 10px;
   padding: 11px 12px;
   text-align: left;
-  color: #75816a;
+  color: #56654b;
   transition:
     background 0.2s,
     transform 0.2s;
@@ -351,7 +351,7 @@ h1 span {
   border-top: 1px solid #ecefe3;
   padding-top: 17px;
   margin-top: 28px;
-  color: #a2ab96;
+  color: #657556;
   font-size: 10px;
   display: flex;
   gap: 7px;
@@ -374,9 +374,9 @@ h1 span {
   gap: 12px;
 }
 .workspace-heading .eyebrow {
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1.7px;
-  color: #a0a78f;
+  color: #677553;
 }
 .workspace-heading h2 {
   font-size: 19px;
@@ -387,7 +387,7 @@ h1 span {
   font-size: 10px;
   background: #f3f4eb;
   border: 1px solid #e8ebdc;
-  color: #929b83;
+  color: #5c684e;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -397,7 +397,7 @@ h1 span {
 }
 .status-pill.green {
   background: #eef3df;
-  color: #647d43;
+  color: #4d6733;
   border-color: #dfe8cd;
 }
 .status-pill.green .dot {
@@ -417,7 +417,7 @@ h1 span {
   background: none;
   border-bottom: 2px solid transparent;
   padding: 14px 0 12px;
-  color: #9aa18f;
+  color: #637154;
   font-size: 12px;
   white-space: nowrap;
 }
@@ -426,7 +426,7 @@ h1 span {
   border-color: #6a8358;
 }
 .count {
-  font-size: 9px;
+  font-size: 10px;
   min-width: 16px;
   border-radius: 4px;
   background: #edf0e1;
@@ -448,7 +448,7 @@ h1 span {
 }
 .art-label {
   font-size: 10px;
-  color: #a0a891;
+  color: #637154;
   letter-spacing: 1px;
 }
 .empty-panel h3 {
@@ -460,7 +460,7 @@ h1 span {
 .empty-panel p {
   font-size: 12px;
   line-height: 1.9;
-  color: #99a18e;
+  color: #616f56;
   max-width: 390px;
 }
 .promise-row {
@@ -468,7 +468,7 @@ h1 span {
   justify-content: center;
   gap: 21px;
   margin-top: 27px;
-  color: #889579;
+  color: #5d6e4c;
   font-size: 10px;
 }
 .promise-row span {
@@ -485,14 +485,14 @@ h1 span {
   justify-content: center;
   gap: 7px;
   font-size: 10px;
-  color: #a7af98;
+  color: #637154;
 }
 .page-footer {
   display: flex;
   justify-content: space-between;
   padding: 24px 0 25px;
   font-size: 10px;
-  color: #9ca58f;
+  color: #637154;
   gap: 15px;
 }
 .page-footer i {
@@ -522,7 +522,7 @@ h1 span {
 }
 .form-note {
   font-size: 10px;
-  color: #9aa58c;
+  color: #637154;
   line-height: 1.8;
   margin: 8px 0 12px;
 }
@@ -530,14 +530,14 @@ h1 span {
   display: flex;
   flex-direction: column;
   font-size: 11px;
-  color: #75816a;
+  color: #56654b;
   gap: 6px;
   margin-bottom: 13px;
   min-width: 0;
 }
 .conditions label small {
-  font-size: 9px;
-  color: #aeb69e;
+  font-size: 10px;
+  color: #657556;
   font-weight: 400;
 }
 .field-row {
@@ -558,13 +558,13 @@ h1 span {
 }
 .conditions details summary {
   font-size: 11px;
-  color: #788a68;
+  color: #576c49;
   cursor: pointer;
   padding: 2px 0 12px;
 }
 .conditions details summary span {
-  font-size: 9px;
-  color: #a3ad95;
+  font-size: 10px;
+  color: #637154;
   margin-left: 4px;
 }
 .conditions .checkbox-label {
@@ -583,7 +583,7 @@ h1 span {
   border-radius: 7px;
   display: flex;
   gap: 7px;
-  color: #a0a58d;
+  color: #616b4d;
   font-size: 10px;
   line-height: 1.8;
   margin: 9px 0 14px;
@@ -613,8 +613,8 @@ h1 span {
 }
 .cost-note {
   text-align: center;
-  font-size: 9px;
-  color: #a7af97;
+  font-size: 10px;
+  color: #637154;
   line-height: 1.8;
   margin-top: 9px;
 }
@@ -629,7 +629,7 @@ h1 span {
   padding: 12px;
   border-radius: 8px;
   background: #fbefe5;
-  color: #a1774c;
+  color: #82522d;
   font-size: 11px;
 }
 .error-banner button {
@@ -640,7 +640,7 @@ h1 span {
   color: #7f5e3b;
 }
 .connection-note {
-  color: #a5845f;
+  color: #795635;
 }
 .result-body {
   padding: 23px 29px 25px;
@@ -653,7 +653,7 @@ h1 span {
   background: #f7f5e9;
   border: 1px solid #eee9cf;
   border-radius: 9px;
-  color: #a09157;
+  color: #75632f;
   margin-bottom: 23px;
 }
 .notice strong {
@@ -662,14 +662,14 @@ h1 span {
 }
 .notice p {
   font-size: 10px;
-  color: #a9a07b;
+  color: #70643d;
   margin-top: 3px;
   line-height: 1.8;
 }
 .notice.warning {
   background: #fcf1e8;
   border-color: #efdfce;
-  color: #ac7850;
+  color: #865334;
 }
 .day-title {
   display: flex;
@@ -678,7 +678,7 @@ h1 span {
   margin-bottom: 21px;
 }
 .day-title > span {
-  color: #8fa071;
+  color: #576c49;
   font-size: 10px;
   letter-spacing: 1px;
   border: 1px solid #dfe7ce;
@@ -690,8 +690,8 @@ h1 span {
   font-weight: 500;
 }
 .day-title small {
-  font-size: 9px;
-  color: #a5af94;
+  font-size: 10px;
+  color: #637154;
   margin-left: 9px;
   font-weight: 400;
 }
@@ -708,7 +708,7 @@ h1 span {
   display: flex;
   flex-direction: column;
   font-size: 10px;
-  color: #b1b7a5;
+  color: #637154;
 }
 .time strong {
   font-size: 13px;
@@ -750,8 +750,8 @@ h1 span {
 .activity-label {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
-  color: #9aa883;
+  font-size: 10px;
+  color: #5b6e4b;
 }
 .activity-label span:first-child {
   background: #eef2df;
@@ -768,12 +768,12 @@ h1 span {
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: #95a181;
+  color: #5d6e4c;
 }
 .activity-card blockquote {
   font-size: 10px;
   line-height: 1.9;
-  color: #a2aa94;
+  color: #637154;
   margin: 12px 0 0;
   border-top: 1px dashed #e5ead8;
   padding-top: 10px;
@@ -781,8 +781,8 @@ h1 span {
 }
 .activity-card blockquote small {
   display: block;
-  font-size: 9px;
-  color: #b1b9a2;
+  font-size: 10px;
+  color: #657556;
   margin-top: 4px;
 }
 .budget-box {
@@ -800,17 +800,17 @@ h1 span {
 }
 .budget-box span {
   font-size: 10px;
-  color: #9da88a;
+  color: #5d6e4c;
   display: block;
 }
 .budget-box strong {
   font-size: 15px;
   font-weight: 500;
-  color: #83946e;
+  color: #506643;
 }
 .budget-box p {
   font-size: 10px;
-  color: #a5af96;
+  color: #5d6e4c;
   line-height: 1.8;
 }
 .result-footer {
@@ -823,18 +823,18 @@ h1 span {
 }
 .result-footer span {
   font-size: 10px;
-  color: #879774;
+  color: #5d6e4c;
 }
 .result-footer small {
   display: block;
-  font-size: 9px;
-  color: #b0baa0;
+  font-size: 10px;
+  color: #637154;
   margin-top: 3px;
 }
 .section-note {
   font-size: 11px;
   line-height: 1.9;
-  color: #a4ae94;
+  color: #637154;
   margin-bottom: 17px;
 }
 .source-card {
@@ -848,14 +848,14 @@ h1 span {
   display: flex;
   gap: 6px;
   align-items: center;
-  color: #95a57d;
+  color: #5d6e4c;
   font-size: 10px;
   margin-bottom: 9px;
 }
 .source-kind > span {
   margin-left: auto;
-  font-size: 9px;
-  color: #b4ba9f;
+  font-size: 10px;
+  color: #637154;
 }
 .source-card > a {
   display: flex;
@@ -874,13 +874,13 @@ h1 span {
 }
 .source-card p {
   font-size: 11px;
-  color: #9aa887;
+  color: #5d6e4c;
   line-height: 1.8;
   margin: 8px 0;
 }
 .source-card > small {
-  font-size: 9px;
-  color: #b1bba0;
+  font-size: 10px;
+  color: #637154;
   display: block;
   margin-top: 8px;
 }
@@ -889,7 +889,7 @@ h1 span {
   padding: 15px;
   border-radius: 9px;
   font-size: 12px;
-  color: #98a581;
+  color: #5d6e4c;
   margin-bottom: 15px;
 }
 .check-summary strong {
@@ -910,27 +910,27 @@ h1 span {
   justify-content: space-between;
   gap: 15px;
   font-size: 11px;
-  color: #8a9a76;
+  color: #5d6e4c;
   overflow-wrap: anywhere;
 }
 .check-state {
-  font-size: 9px;
+  font-size: 10px;
   white-space: nowrap;
   border-radius: 4px;
   padding: 2px 6px;
   background: #f3f4e6;
-  color: #a6a27b;
+  color: #6c663b;
 }
 .check-state.pass {
   background: #edf3de;
-  color: #8ca669;
+  color: #4d6733;
 }
 .check-state.fail {
   background: #f9eadf;
-  color: #bc8f66;
+  color: #865334;
 }
 .muted {
-  color: #9ba98a;
+  color: #5d6e4c;
   font-size: 12px;
   margin-bottom: 20px;
 }
@@ -944,7 +944,7 @@ h1 span {
 }
 .small-note {
   font-size: 10px;
-  color: #b1baa0;
+  color: #637154;
   margin-top: 18px;
 }
 .spinner {
@@ -985,7 +985,7 @@ h1 span {
   }
   .promise-row {
     gap: 12px;
-    font-size: 9px;
+    font-size: 10px;
   }
   .intro-note {
     padding: 0 10px;
@@ -994,7 +994,7 @@ h1 span {
     font-size: 17px;
   }
   .status-pill {
-    font-size: 9px;
+    font-size: 10px;
   }
 }
 @media (max-width: 760px) {
@@ -1023,7 +1023,7 @@ h1 span {
     font-size: 10px;
   }
   .preview-label {
-    font-size: 9px;
+    font-size: 10px;
   }
   .main-shell {
     padding: 30px 18px 0;
@@ -1115,14 +1115,14 @@ h1 span {
   }
   .promise-row {
     gap: 15px;
-    font-size: 9px;
+    font-size: 10px;
   }
   .workspace-bottom {
-    font-size: 9px;
+    font-size: 10px;
     padding: 12px 8px;
   }
   .page-footer {
-    font-size: 9px;
+    font-size: 10px;
     flex-direction: column;
     gap: 4px;
     padding: 20px 0;
@@ -1167,6 +1167,19 @@ h1 span {
   }
   .promise-row span {
     gap: 4px;
+  }
+}
+@media (max-width: 380px) {
+  .tabbar {
+    gap: 12px;
+    padding-inline: 13px;
+  }
+  .tabbar button {
+    gap: 4px;
+  }
+  .tabbar button svg {
+    width: 14px;
+    height: 14px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
