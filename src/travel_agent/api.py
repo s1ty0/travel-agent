@@ -7,8 +7,10 @@ from .claim_review import ClaimInspection, inspect_claims
 from .models import IntakeInput, LedgerInput, TripRequest, ValidationReport
 from .parsing import intake
 from .references import EvidenceInspection, import_reference, inspection_report
+from .web_api import router as web_router
 
 app = FastAPI(title="travel-agent (M1 offline)", version="0.1.0")
+app.include_router(web_router)
 
 
 @app.get("/health")

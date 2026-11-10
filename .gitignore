@@ -54,6 +54,10 @@ node_modules/
 dist/
 build/
 coverage/
+*.tsbuildinfo
+web/playwright-report/
+web/test-results/
+web/next-env.d.ts
 
 # Local editor and OS files
 .idea/

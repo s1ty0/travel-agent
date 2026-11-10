@@ -18,3 +18,30 @@ jobs:
       - run: uv sync --locked
       - run: uv run --no-sync python scripts/check.py
       - run: uv build --out-dir artifacts/dist
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --registry=https://registry.npmjs.org
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run check
+      - run: npm test
+      - run: npm audit --registry=https://registry.npmjs.org
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-browser-checks
+          path: web/test-results/
+          retention-days: 7

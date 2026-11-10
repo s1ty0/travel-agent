@@ -1,0 +1,15 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
+  "files": {
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "!**/node_modules/**",
+      "!**/.next/**",
+      "!next-env.d.ts"
+    ]
+  },
+  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false }
+}

@@ -46,6 +46,8 @@ M2 来源适配继续覆盖：DeepSeek 搜索、高德城市/周边 POI、步行
 
 原始报告在 `artifacts/qa/summary.json` 和 `artifacts/qa/junit.xml`，构建产物在 `artifacts/dist/`；均不提交 Public 仓库。开发日志保存脱敏结果。CI 配置为 Windows/Linux × Python 3.11/3.13；本地通过不能宣称远程矩阵也通过。
 
+网页工作台在原 Python 门禁外增加 `web` CI。依次执行锁定安装、Biome、Prettier、类型检查、组件/代理测试、依赖审计、生产构建和 Playwright 桌面/手机视口。合成浏览器测试覆盖提问与确认、真实创建动作的模拟请求、未知费用、来源、导出、刷新和服务失败。另行通过本机真实 HTTP 验证供应商闭环和重复提交/跨会话拦截。现阶段的视口测试不替代真机、预发布和正式身份验收。[网页说明](WEB.md)
+
 ## 正式上线前必须补齐
 
 | 检查层 | 需要验证的行为 | 当前状态 |
