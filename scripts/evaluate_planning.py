@@ -106,7 +106,24 @@ def run_case(case, *, repair_transport=None, settings=None, today=None):
                         "quote": "须预约",
                     }
                 ]
-            calls = [tool("submit_plan", {"activities": activities}, f"submit-{index}")]
+            feedback = json.loads(payloads[-1]["messages"][-1]["content"]) if index >= 2 else {}
+            scope = feedback.get("repair_scope", {})
+            if scope.get("protocol") == "time-patch-v1":
+                calls = [
+                    tool(
+                        "patch_plan_times",
+                        {
+                            "base_proposal_sha256": scope["base_proposal_sha256"],
+                            "shifts": [
+                                {"activity_index": i, "start_minute": item["start_minute"]}
+                                for i, item in enumerate(activities)
+                            ],
+                        },
+                        f"patch-{index}",
+                    )
+                ]
+            else:
+                calls = [tool("submit_plan", {"activities": activities}, f"submit-{index}")]
         usage = {"prompt_tokens": 100, "completion_tokens": 50}
         if scenario == "budget_stop" and index == 1:
             usage = {"prompt_tokens": 10000, "completion_tokens": 500}

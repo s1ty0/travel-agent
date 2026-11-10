@@ -4,6 +4,7 @@ import json
 from collections import Counter
 
 from .references import digest
+from .time_patch import VERSION, proposal_hash
 
 
 def _signature(activity):
@@ -31,15 +32,18 @@ def scope_feedback(proposal, mode):
         "mode": mode,
         "preserve_non_time_fields_and_duration": mode != "rebuild_for_day_coverage",
         "allow_removal": mode == "remove_or_shift_only",
+        "protocol": VERSION if mode == "shift_times_only" else "full-plan-v1",
+        "base_proposal_sha256": proposal_hash(proposal),
         "activities": [
             {
+                "activity_index": index,
                 "day": item.day,
                 "place_source_id": item.place_source_id,
                 "kind": item.kind,
                 "duration_minutes": item.end_minute - item.start_minute,
                 "non_time_signature_sha256": _signature(item),
             }
-            for item in proposal.activities
+            for index, item in enumerate(proposal.activities)
         ],
     }
 

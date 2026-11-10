@@ -88,13 +88,13 @@ def test_failed_candidates_never_count_as_success_or_trigger_second_attempt(expe
         tool = body["choices"][0]["message"]["tool_calls"][0]
         args = json.loads(tool["function"]["arguments"])
         if mode == "unchanged":
-            args["activities"][1].update(start_minute=605, end_minute=665)
+            args["shifts"] = [{"activity_index": 1, "start_minute": 605}]
         elif mode == "drop_place":
-            args["activities"] = args["activities"][:1]
+            args["remove_indices"] = [1]
         elif mode == "shorten_visit":
-            args["activities"][1]["end_minute"] -= 30
+            args["shifts"][1]["end_minute"] = 700
         elif mode == "reclassify":
-            args["activities"][1]["kind"] = "meal"
+            args["shifts"][1]["kind"] = "meal"
         elif mode == "buy":
             tool["function"]["name"] = "pay"
         tool["function"]["arguments"] = json.dumps(args)
@@ -106,10 +106,14 @@ def test_failed_candidates_never_count_as_success_or_trigger_second_attempt(expe
     case = report["cases"][0]
     assert report["passed"] is False and case["passed"] is False
     assert len(calls) == 1 and case["replans"] == 1
-    if mode in ("drop_place", "shorten_visit", "reclassify"):
+    if mode == "unchanged":
         assert case["status"] == "invalid_plan"
-        assert "repair_scope_violation" in case["final_failed_rules"]
-        assert case["checks"]["experiment_scope_preserved"] is False
+        assert case["final_failed_rules"] == ["transfer_duration"]
+    if mode in ("drop_place", "shorten_visit", "reclassify"):
+        assert case["status"] == "stopped"
+        assert case["issue"] == "invalid_model_or_tool_response"
+        assert len(case["validation_attempts"]) == 1
+        assert case["final_failed_rules"] == ["transfer_duration"]
     assert "sensitive" not in json.dumps(report)
 
 
@@ -134,8 +138,16 @@ def test_request_guard_rejects_arbitrary_endpoint_or_missing_submit_feedback(exp
     payload = {
         "tools": [{"function": {"name": "find_places"}}],
         "tool_choice": {"function": {"name": "submit_plan"}},
+        "messages": [
+            {
+                "role": "tool",
+                "content": json.dumps(
+                    {"status": "revision_requested", "repair_scope": {"protocol": "time-patch-v1"}}
+                ),
+            }
+        ],
     }
-    with pytest.raises(ValueError, match="experiment_requires_submit_only"):
+    with pytest.raises(ValueError, match="experiment_requires_scoped_repair_tool"):
         experiment.inspect_request(
             httpx.Request("POST", "https://api.deepseek.com/chat/completions", json=payload)
         )

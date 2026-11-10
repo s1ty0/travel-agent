@@ -13,6 +13,18 @@ from travel_agent.plan_render import render_markdown
 from travel_agent.planner import validate_proposal
 from travel_agent.planning_models import PlannerLimits, PlanningInput, Proposal
 from travel_agent.source_models import SourceBatch
+from travel_agent.time_patch import proposal_hash
+
+
+def patch_call(original, *, start=650):
+    return call(
+        "patch_plan_times",
+        {
+            "base_proposal_sha256": proposal_hash(Proposal.model_validate(original)),
+            "shifts": [{"activity_index": 1, "start_minute": start}],
+        },
+        "fixed",
+    )
 
 
 def repairing_rounds():
@@ -22,7 +34,7 @@ def repairing_rounds():
     return [
         default_rounds()[0],
         [call("submit_plan", initial, "first")],
-        [call("submit_plan", proposal(), "fixed")],
+        [patch_call(initial)],
     ]
 
 
@@ -88,7 +100,7 @@ def test_repair_uses_original_tool_history_only_submit_tool_and_same_sources():
     assert result["service_cost"]["estimated_upper"] == 6800
     assert [item["status"] for item in result["validation_attempts"]] == ["invalid_plan", "draft"]
     repair_payload = counts["payloads"][2]
-    assert [tool["function"]["name"] for tool in repair_payload["tools"]] == ["submit_plan"]
+    assert [tool["function"]["name"] for tool in repair_payload["tools"]] == ["patch_plan_times"]
     feedback = json.loads(repair_payload["messages"][-1]["content"])
     assert repair_payload["messages"][-1]["tool_call_id"] == "first"
     assert feedback["status"] == "revision_requested"
@@ -106,7 +118,7 @@ def test_model_cannot_request_more_source_tools_during_repair(tool):
     rounds[2] = [call(tool, {}, "extra")]
     runner, counts = make_runner(rounds, limits=PlannerLimits(max_replans=1))
     result = runner.run(data())
-    assert result["status"] == "stopped" and result["issue"] == "repair_submit_only"
+    assert result["status"] == "stopped" and result["issue"] == "repair_patch_only"
     assert result["plan"]["status"] == "invalid_plan"
     assert counts["source"] == 3 and len(result["validation_attempts"]) == 1
     assert "修正过程已停止" in render_markdown(result)
@@ -202,10 +214,10 @@ def test_time_only_repair_cannot_change_original_non_time_scope(change):
     rounds[2] = [call("submit_plan", fixed, "changed")]
     runner, counts = make_runner(rounds, limits=PlannerLimits(max_replans=1))
     result = runner.run(data())
-    assert result["status"] == "invalid_plan"
-    assert "repair_scope_violation" in result["validation_attempts"][-1]["failed_rules"]
+    assert result["status"] == "stopped" and result["issue"] == "repair_patch_only"
+    assert len(result["validation_attempts"]) == 1
+    assert result["plan"]["status"] == "invalid_plan"
     assert counts["source"] == 3
-    assert result["validation_attempts"][-1]["repair_mode"] == "shift_times_only"
 
 
 def test_overlap_feedback_includes_known_required_transfer_time():
@@ -213,6 +225,7 @@ def test_overlap_feedback_includes_known_required_transfer_time():
     initial = proposal()
     initial["activities"][1].update(start_minute=590, end_minute=650)
     rounds[1] = [call("submit_plan", initial, "overlap")]
+    rounds[2] = [patch_call(initial)]
     runner, counts = make_runner(rounds, limits=PlannerLimits(max_replans=1))
     result = runner.run(data())
     assert result["status"] == "draft"

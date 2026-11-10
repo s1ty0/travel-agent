@@ -14,7 +14,7 @@ from evaluate_planning import FIXTURE, ROOT, A, B, run_case, tool
 from travel_agent.deepseek import DeepSeekSettings
 from travel_agent.service_budget import PriceCard
 
-EXPERIMENT_VERSION = "hybrid-repair-v2"
+EXPERIMENT_VERSION = "hybrid-repair-v3-time-patch"
 SCENARIOS = {
     "count": "explicit_single_sight_repaired",
     "transfer": "insufficient_transfer_repaired",
@@ -44,6 +44,17 @@ def offline_repair(request):
         item["start_minute"] = cursor
         item["end_minute"] = cursor + duration
         cursor = item["end_minute"] + 30
+    if feedback["repair_scope"]["protocol"] == "time-patch-v1":
+        name = "patch_plan_times"
+        arguments = {
+            "base_proposal_sha256": feedback["repair_scope"]["base_proposal_sha256"],
+            "shifts": [
+                {"activity_index": i, "start_minute": item["start_minute"]}
+                for i, item in enumerate(activities)
+            ],
+        }
+    else:
+        name, arguments = "submit_plan", {"activities": activities}
     return httpx.Response(
         200,
         json={
@@ -52,11 +63,7 @@ def offline_repair(request):
             "choices": [
                 {
                     "finish_reason": "tool_calls",
-                    "message": {
-                        "tool_calls": [
-                            tool("submit_plan", {"activities": activities}, "experiment-fixed")
-                        ]
-                    },
+                    "message": {"tool_calls": [tool(name, arguments, "experiment-fixed")]},
                 }
             ],
         },
@@ -68,11 +75,16 @@ def inspect_request(request):
         raise ValueError("unexpected_experiment_endpoint")
     payload = json.loads(request.content)
     names = [item["function"]["name"] for item in payload["tools"]]
-    if names != ["submit_plan"] or payload["tool_choice"]["function"]["name"] != "submit_plan":
-        raise ValueError("experiment_requires_submit_only")
     feedback = json.loads(payload["messages"][-1]["content"])
     if payload["messages"][-1]["role"] != "tool" or feedback["status"] != "revision_requested":
         raise ValueError("experiment_requires_real_validation_feedback")
+    expected = (
+        "patch_plan_times"
+        if feedback["repair_scope"]["protocol"] == "time-patch-v1"
+        else "submit_plan"
+    )
+    if names != [expected] or payload["tool_choice"]["function"]["name"] != expected:
+        raise ValueError("experiment_requires_scoped_repair_tool")
     return payload
 
 
@@ -168,6 +180,7 @@ def summarize(scenario, result, counters, calls, live, elapsed_ms, original):
         "facts_verified": False,
         "full_prompt_or_plan_saved": False,
         "scope_check_basis": "actual_seeded_activity_types_places_and_durations",
+        "repair_protocol": ("full-plan-v1" if scenario == "count" else "time-patch-v1"),
     }
 
 
