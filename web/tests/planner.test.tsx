@@ -17,7 +17,7 @@ test("initial page has no invented itinerary and does not call paid task creatio
   expect(screen.queryByText("合成测试馆")).not.toBeInTheDocument();
 });
 
-test("natural question requires visible condition confirmation before paid creation", async () => {
+test("sending an idea creates a first draft before condition refinement", async () => {
   let submitted: Record<string, unknown> | undefined;
   vi.stubGlobal(
     "fetch",
@@ -35,13 +35,22 @@ test("natural question requires visible condition confirmation before paid creat
   fireEvent.click(screen.getByText("南京 · 博物馆慢游"));
   expect(submitted).toBeUndefined();
   expect(screen.getByLabelText("目的城市")).toHaveValue("南京");
-  fireEvent.click(screen.getByRole("button", { name: "确认条件并生成" }));
+  fireEvent.click(screen.getByRole("button", { name: "发送旅行想法" }));
   await screen.findByText("合成测试馆");
-  expect(submitted?.planning).toMatchObject({
-    city: "南京",
-    trip: { destination: "南京", budget_scope: "total" },
-  });
+  expect(submitted?.idea).toContain("南京");
+  expect(submitted?.planning).toBeUndefined();
   expect(screen.getByText("尚不能确认")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("旅行总预算"), {
+    target: { value: "3000以内" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "按补充条件更新行程" }));
+  await waitFor(() =>
+    expect(submitted?.planning).toMatchObject({
+      city: "南京",
+      trip: { budget: "3000以内" },
+    }),
+  );
+  expect(screen.getByRole("button", { name: "查看上一版行程" })).toBeVisible();
 });
 
 test("network/config failure never falls back to fabricated plans", async () => {

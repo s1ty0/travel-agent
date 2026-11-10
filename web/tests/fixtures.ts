@@ -6,6 +6,11 @@ export const completed: Task = {
   error: null,
   output: {
     city: "南京",
+    planning: {
+      city: "南京",
+      trip: { budget: "2000以内", days: 1, raw_text: "南京一日博物馆" },
+    },
+    assumptions: ["人数尚未明确，费用口径待补充。"],
     audit_saved: true,
     markdown: "# 合成草案\n仅用于测试。",
     result: {

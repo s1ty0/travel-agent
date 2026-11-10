@@ -13,16 +13,17 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from .deepseek import DeepSeekSettings
+from .deepseek import DeepSeekSettings, ProviderError
 from .evidence_store import save_provenance
+from .idea import extract_idea
 from .models import Contract
 from .plan_render import render_markdown
 from .planner import BaselineRunner
 from .planner_cli import save_run
 from .planning_models import PlannerLimits, PlanningInput
-from .service_budget import PriceCard
+from .service_budget import PriceCard, ServiceBudget
 from .source_models import SourceBatch
 from .sources import amap_key_from_env, fingerprint
 
@@ -31,8 +32,18 @@ router = APIRouter(prefix="/v1/web", tags=["web"])
 
 class WebPlanRequest(Contract):
     request_id: UUID
-    planning: PlanningInput
+    planning: PlanningInput | None = None
+    idea: Annotated[str, Field(min_length=1, max_length=2000)] | None = None
+    base_task_id: UUID | None = None
     max_replans: Annotated[int, Field(strict=True, ge=0, le=1)] = 0
+
+    @model_validator(mode="after")
+    def one_input(self):
+        if (self.idea is None) == (self.planning is None):
+            raise ValueError("provide_idea_or_planning")
+        if self.idea is not None and not self.idea.strip():
+            raise ValueError("idea_empty")
+        return self
 
 
 def web_owner(request: Request):
@@ -51,16 +62,73 @@ def live_enabled():
     return os.environ.get("TRAVEL_WEB_LIVE") == "1"
 
 
-def run_plan(data: WebPlanRequest):
-    result = BaselineRunner(
-        DeepSeekSettings.from_env(),
+def run_plan(data: WebPlanRequest, *, base_planning=None):
+    start = monotonic()
+    settings = DeepSeekSettings.from_env()
+    limits = PlannerLimits(
+        allow_rule_draft=True,
+        service_cap_minor=min(int(os.environ.get("SERVICE_BUDGET_MINOR", "200")), 200),
+        max_replans=data.max_replans,
+    )
+    prices = PriceCard(amap_free_quota_only=os.environ.get("AMAP_FREE_QUOTA_ONLY") == "1")
+    runner = BaselineRunner(
+        settings,
         amap_key_from_env(),
-        limits=PlannerLimits(
-            service_cap_minor=min(int(os.environ.get("SERVICE_BUDGET_MINOR", "200")), 200),
-            max_replans=data.max_replans,
-        ),
-        prices=PriceCard(amap_free_quota_only=os.environ.get("AMAP_FREE_QUOTA_ONLY") == "1"),
-    ).run(data.planning)
+        limits=limits,
+        prices=prices,
+    )
+    ledger = ServiceBudget(limits.service_cap_minor)
+    planning, assumptions, events = data.planning, [], []
+    initial_calls = 0
+    if data.idea is not None:
+        prices.validate(settings.model, runner.today)
+        try:
+            initial_calls = 1
+            planning, assumptions = extract_idea(
+                data.idea,
+                settings,
+                prices,
+                ledger,
+                **({"base": base_planning} if base_planning else {}),
+            )
+            events = [
+                {
+                    "step": 1,
+                    "operation": "idea_extraction",
+                    "status": "ok",
+                    "elapsed_ms": int((monotonic() - start) * 1000),
+                }
+            ]
+        except Exception as exc:
+            issue = str(exc) if isinstance(exc, ProviderError) else "invalid_model_or_tool_response"
+            initial_calls = 0 if issue == "service_budget_exhausted" else 1
+            return {
+                "city": "旅行初稿",
+                "planning": None,
+                "assumptions": [],
+                "audit_saved": False,
+                "markdown": "本次想法解析未完成，请补充目的城市后再试。",
+                "result": {
+                    "run_id": str(uuid4()),
+                    "status": "stopped",
+                    "issue": issue,
+                    "plan": None,
+                    "sources": [],
+                    "events": [],
+                    "model_calls": initial_calls,
+                    "source_calls": 0,
+                    "replans": 0,
+                    "service_cost": ledger.summary(),
+                    "elapsed_ms": int((monotonic() - start) * 1000),
+                },
+            }
+    result = runner.run(
+        planning,
+        ledger=ledger,
+        initial_model_calls=initial_calls,
+        initial_events=events,
+        started_at=start,
+    )
     # Existing minimal audit excludes the itinerary, raw request, quotes and prompt.
     audit_path = Path("runtime/web-audit.sqlite3")
     try:
@@ -71,7 +139,9 @@ def run_plan(data: WebPlanRequest):
     except (OSError, sqlite3.Error):
         audit_saved = False
     return {
-        "city": data.planning.city,
+        "city": planning.city,
+        "planning": planning.model_dump(mode="json"),
+        "assumptions": assumptions,
         "result": result,
         "markdown": render_markdown(result),
         "audit_saved": audit_saved,
@@ -112,6 +182,15 @@ class WebTasks:
                     if task.input_hash != signature:
                         raise HTTPException(409, "request_id_conflict")
                     return self.view(key, task)
+            base_planning = None
+            if data.base_task_id is not None:
+                base_task = self.tasks.get(str(data.base_task_id))
+                if base_task is None or base_task.owner != owner:
+                    raise HTTPException(404, "task_not_found")
+                raw_base = (base_task.output or {}).get("planning")
+                if raw_base is None:
+                    raise HTTPException(409, "base_conditions_unavailable")
+                base_planning = PlanningInput.model_validate(raw_base)
             if any(task.state == "running" for task in self.tasks.values()):
                 raise HTTPException(409, "planner_busy")
             if len(self.tasks) >= 32:
@@ -120,16 +199,20 @@ class WebTasks:
             task = Task(owner, data.request_id, signature, now)
             self.tasks[task_id] = task
         try:
-            self.pool.submit(self.execute, task_id, data)
+            self.pool.submit(self.execute, task_id, data, base_planning)
         except RuntimeError:
             with self.lock:
                 del self.tasks[task_id]
             raise HTTPException(503, "planning_unavailable") from None
         return self.get(owner, task_id)
 
-    def execute(self, task_id, data):
+    def execute(self, task_id, data, base_planning=None):
         try:
-            output = self.runner(data)
+            output = (
+                self.runner(data, base_planning=base_planning)
+                if base_planning
+                else self.runner(data)
+            )
             with self.lock:
                 self.tasks[task_id].output = output
                 self.tasks[task_id].state = "completed"
@@ -168,7 +251,7 @@ def web_config(owner: Annotated[str, Depends(web_owner)]):
 def create_task(data: WebPlanRequest, owner: Annotated[str, Depends(web_owner)]):
     if not live_enabled():
         raise HTTPException(503, "live_planning_disabled")
-    if data.planning.page_urls or data.planning.references:
+    if data.planning and (data.planning.page_urls or data.planning.references):
         raise HTTPException(422, "web_reference_import_not_enabled")
     return tasks.create(owner, data)
 

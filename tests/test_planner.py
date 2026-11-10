@@ -244,6 +244,77 @@ def test_source_and_model_call_limits_stop_without_retry():
     assert counts["model"] == 1
 
 
+def test_exhausted_sources_are_deferred_then_finalized_in_same_budget():
+    rounds = [
+        [*default_rounds()[0], call("find_places", {"keywords": "其他馆"}, "extra")],
+        [call("submit_plan", proposal(), "final")],
+    ]
+    runner, counts = make_runner(rounds, limits=PlannerLimits(max_source_calls=2))
+    result = runner.run(data())
+    assert result["status"] == "draft" and result["issue"] is None
+    assert result["source_calls"] == counts["source"] == 2
+    assert result["model_calls"] == 2
+    final = counts["payloads"][1]
+    assert [tool["function"]["name"] for tool in final["tools"]] == ["submit_plan"]
+    assert final["tool_choice"]["function"]["name"] == "submit_plan"
+    feedback = json.loads(final["messages"][-1]["content"])
+    assert feedback["status"] == "not_executed" and feedback["issue"] == "source_call_limit"
+    assert any(
+        check["rule"] == "transfer_duration" and check["status"] == "unknown"
+        for check in result["plan"]["checks"]
+    )
+    assert result["service_cost"]["estimated_upper"] == 6200
+
+
+def test_web_opt_in_can_finish_one_day_from_existing_place_without_more_calls():
+    from travel_agent.plan_render import render_markdown
+
+    rounds = [default_rounds()[0], default_rounds()[1]]
+    runner, counts = make_runner(
+        rounds,
+        limits=PlannerLimits(
+            max_model_calls=2,
+            max_source_calls=2,
+            allow_rule_draft=True,
+        ),
+    )
+    result = runner.run(data())
+    assert result["status"] == "draft" and result["issue"] is None
+    assert result["model_calls"] == 2 and counts["source"] == 2
+    assert result["plan"]["draft_method"] == "rule_from_existing_place"
+    assert result["plan"]["activities"][0]["place_source_id"] == A
+    assert result["plan"]["facts_verified"] is False
+    assert result["plan"]["travel_budget"]["status"] == "uncertain"
+    assert "程序据已查询地点" in render_markdown(result)
+    assert result["events"][-1]["operation"] == "rule_draft"
+
+
+def test_program_starter_does_not_replace_an_invalid_model_proposal_or_provider_failure():
+    bad = proposal()
+    bad["activities"][1].update(start_minute=590, end_minute=650)
+    runner, _ = make_runner(
+        [default_rounds()[0], [call("submit_plan", bad, "bad")]],
+        limits=PlannerLimits(allow_rule_draft=True),
+    )
+    result = runner.run(data())
+    assert result["status"] == "invalid_plan" and "draft_method" not in result["plan"]
+    runner, _ = make_runner(source_failure=True, limits=PlannerLimits(allow_rule_draft=True))
+    result = runner.run(data())
+    assert result["status"] == "stopped" and result["plan"] is None
+
+
+def test_program_starter_does_not_invent_missing_multiday_coverage():
+    runner, _ = make_runner(
+        [default_rounds()[0]],
+        limits=PlannerLimits(
+            max_model_calls=1,
+            allow_rule_draft=True,
+        ),
+    )
+    result = runner.run(data(days=2))
+    assert result["issue"] == "model_call_limit" and result["plan"] is None
+
+
 def test_quota_exhaustion_stops_run_without_paid_fallback():
     runner, counts = make_runner(source_failure=True)
     result = runner.run(data())

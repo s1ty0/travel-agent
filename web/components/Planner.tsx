@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { ResultPanel } from "./ResultPanel";
 import { errorText, type Task } from "../lib/contracts";
@@ -54,7 +54,7 @@ export default function Planner() {
   const [city, setCity] = useState("");
   const [budget, setBudget] = useState("");
   const [days, setDays] = useState(1);
-  const [adults, setAdults] = useState(1);
+  const [adults, setAdults] = useState<number | "">("");
   const [startDate, setStartDate] = useState("");
   const [origin, setOrigin] = useState("");
   const [sights, setSights] = useState(2);
@@ -64,10 +64,25 @@ export default function Planner() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [task, setTask] = useState<Task | null>(null);
+  const [previousTask, setPreviousTask] = useState<Task | null>(null);
+  const [showPrevious, setShowPrevious] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [pollingPaused, setPollingPaused] = useState(false);
   const requestId = useRef<string | null>(null);
   const busyRef = useRef(false);
+
+  const acceptConditions = useCallback((value: Task) => {
+    const planning = value.output?.planning;
+    if (!planning) return;
+    setCity(planning.city === "待选择目的城市" ? "" : planning.city);
+    setBudget(planning.trip.budget ?? "");
+    setDays(planning.trip.days ?? 1);
+    setAdults(planning.trip.adults ?? "");
+    setOrigin(planning.trip.origin ?? "");
+    setStartDate(planning.trip.start_date ?? "");
+    if (planning.trip.raw_text) setMessage(planning.trip.raw_text);
+    setAsked(true);
+  }, []);
 
   useEffect(() => {
     api("config")
@@ -96,6 +111,7 @@ export default function Planner() {
         if (next.state === "running") {
           timer = setTimeout(poll, 1200);
         } else {
+          acceptConditions(next);
           setBusy(false);
           busyRef.current = false;
         }
@@ -116,7 +132,7 @@ export default function Planner() {
       active = false;
       clearTimeout(timer);
     };
-  }, [taskId, pollingPaused]);
+  }, [taskId, pollingPaused, acceptConditions]);
 
   function choose(index: number) {
     const item = suggestions[index];
@@ -134,10 +150,12 @@ export default function Planner() {
     setCity("");
     setBudget("");
     setTask(null);
+    setPreviousTask(null);
+    setShowPrevious(false);
     setTaskId(null);
     setError("");
     setDays(1);
-    setAdults(1);
+    setAdults("");
     setOrigin("");
     setStartDate("");
     setSights(2);
@@ -145,7 +163,10 @@ export default function Planner() {
     requestId.current = null;
     sessionStorage.removeItem("travel_task");
   }
-  async function generate(event: React.FormEvent<HTMLFormElement>) {
+  async function generate(
+    event: React.FormEvent<HTMLFormElement>,
+    ideaOnly = false,
+  ) {
     event.preventDefault();
     if (busyRef.current) return;
     busyRef.current = true;
@@ -154,31 +175,40 @@ export default function Planner() {
     setPollingPaused(false);
     const id = requestId.current ?? crypto.randomUUID();
     requestId.current = id;
+    const baseTask = task?.output?.planning ? task : previousTask;
     const payload = {
       request_id: id,
+      ...(baseTask?.output?.planning ? { base_task_id: baseTask.task_id } : {}),
       max_replans: allowRepair ? 1 : 0,
-      planning: {
-        city: city.trim(),
-        trip: {
-          raw_text: message.trim(),
-          destination: city.trim(),
-          budget: budget.trim(),
-          days,
-          adults,
-          budget_scope: "total",
-          ...(startDate ? { start_date: startDate } : {}),
-          ...(origin.trim() ? { origin: origin.trim() } : {}),
-        },
-        constraints: { max_sightseeing_places: sights },
-      },
+      ...(ideaOnly
+        ? { idea: message.trim() }
+        : {
+            planning: {
+              city: city.trim(),
+              trip: {
+                raw_text: message.trim(),
+                destination: city.trim(),
+                ...(budget.trim() ? { budget: budget.trim() } : {}),
+                days,
+                ...(adults ? { adults } : {}),
+                ...(startDate ? { start_date: startDate } : {}),
+                ...(origin.trim() ? { origin: origin.trim() } : {}),
+              },
+              constraints: { max_sightseeing_places: sights },
+            },
+          }),
     };
     try {
       const created: Task = await api("tasks", payload);
+      if (task?.output?.result.plan) setPreviousTask(task);
+      setShowPrevious(false);
       setTask(created);
+      setAsked(true);
       setTaskId(created.task_id);
       sessionStorage.setItem("travel_task", created.task_id);
       requestId.current = null;
       if (created.state !== "running") {
+        acceptConditions(created);
         setBusy(false);
         busyRef.current = false;
       }
@@ -265,11 +295,7 @@ export default function Planner() {
             </div>
             <form
               className="message-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setAsked(true);
-                requestId.current = null;
-              }}
+              onSubmit={(event) => generate(event, true)}
             >
               <label htmlFor="message" className="sr-only">
                 描述你的旅行
@@ -292,7 +318,7 @@ export default function Planner() {
                 <button
                   className="send-button"
                   type="submit"
-                  disabled={busy || !message.trim()}
+                  disabled={busy || !enabled || !message.trim()}
                   aria-label="发送旅行想法"
                 >
                   <Icon name="arrow" size={20} />
@@ -301,7 +327,7 @@ export default function Planner() {
             </form>
             {!asked && (
               <div className="inspiration">
-                <span>还没想好？试着这样开始</span>
+                <span>选一个想法，再发送即可生成初稿</span>
                 {suggestions.map((item, index) => (
                   <button
                     type="button"
@@ -320,7 +346,7 @@ export default function Planner() {
               <div className="conditions">
                 <div className="confirmation-title">
                   <span className="mini-check">✓</span>
-                  <strong>想法已记录，再确认几个条件</strong>
+                  <strong>补充条件，继续完善初稿</strong>
                 </div>
                 <p className="form-note">
                   这组条件决定规划范围。其他想法会送给模型，但尚不能保证逐项验证。
@@ -366,7 +392,6 @@ export default function Planner() {
                     旅行总预算
                     <input
                       name="budget"
-                      required
                       maxLength={80}
                       placeholder="如：2000以内 / 2000～3000"
                       value={budget}
@@ -386,17 +411,20 @@ export default function Planner() {
                       />
                     </label>
                     <label>
-                      成人人数
+                      成人人数 <small>可留空</small>
                       <input
                         name="adults"
-                        required
                         type="number"
                         min={1}
                         max={20}
                         value={adults}
                         disabled={busy}
                         onChange={(event) =>
-                          setAdults(Number(event.target.value))
+                          setAdults(
+                            event.target.value
+                              ? Number(event.target.value)
+                              : "",
+                          )
                         }
                       />
                     </label>
@@ -465,7 +493,7 @@ export default function Planner() {
                     ) : (
                       <>
                         <Icon name="spark" size={18} />
-                        {task ? "按新条件重新生成" : "确认条件并生成"}
+                        {task ? "按补充条件更新行程" : "按这些条件生成"}
                         <Icon name="arrow" size={18} />
                       </>
                     )}
@@ -504,7 +532,30 @@ export default function Planner() {
               <span>不自动预约，不代下单，不执行付款。</span>
             </div>
           </aside>
-          <ResultPanel task={task} />
+          <div>
+            {!busy && previousTask?.output && (
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setShowPrevious((value) => !value)}
+              >
+                {showPrevious ? "查看本次结果" : "查看上一版行程"}
+              </button>
+            )}
+            {busy && previousTask?.output && (
+              <div className="notice">
+                <Icon name="clock" />
+                <p>正在生成更新版，下方先保留上一版供你查看。</p>
+              </div>
+            )}
+            <ResultPanel
+              task={
+                (busy || showPrevious) && previousTask?.output
+                  ? previousTask
+                  : task
+              }
+            />
+          </div>
         </div>
         <footer className="page-footer">
           <span>

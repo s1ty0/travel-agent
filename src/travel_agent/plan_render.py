@@ -30,6 +30,8 @@ def render_markdown(result):
             ["本次未生成可用草案。", "", "原因：" + _escape(result.get("issue") or "unknown")]
         )
     else:
+        if plan.get("draft_note"):
+            lines.extend([_escape(plan["draft_note"]), ""])
         if plan["status"] == "invalid_plan":
             lines.extend(["校验发现冲突，以下安排不能作为可执行行程。", ""])
         limit = plan.get("constraints", {}).get("max_sightseeing_places")

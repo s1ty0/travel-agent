@@ -31,6 +31,8 @@ export type Result = {
     reserved_unsettled: number;
   };
   plan: null | {
+    draft_note?: string;
+    draft_method?: string;
     activities: Activity[];
     checks: Check[];
     facts_verified: boolean;
@@ -57,6 +59,19 @@ export type Task = {
   error: string | null;
   output: null | {
     city: string;
+    assumptions?: string[];
+    planning?: {
+      city: string;
+      trip: {
+        budget?: string | null;
+        days?: number | null;
+        adults?: number | null;
+        origin?: string | null;
+        start_date?: string | null;
+        raw_text?: string;
+      };
+      constraints?: { max_sightseeing_places?: number | null };
+    } | null;
     result: Result;
     markdown: string;
     audit_saved: boolean;
@@ -75,6 +90,9 @@ export const errorText: Record<string, string> = {
   source_call_limit: "已达到本次来源查询上限。",
   model_call_limit: "已达到本次模型回合上限。",
   run_time_limit: "已达到本次规划耗时上限。",
+  base_conditions_unavailable: "上一版条件尚不可用，请先填写目的城市等条件。",
+  select_exact_destination_and_1_to_3_days:
+    "请补充一个目的城市和1～3天的时长，已有想法已保留在条件栏。",
 };
 export function minute(value: number) {
   return `${Math.floor(value / 60)

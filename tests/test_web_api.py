@@ -151,3 +151,29 @@ def test_web_page_imports_are_not_implicitly_enabled(web):
     request["planning"]["references"] = [{"title": "test", "text": "synthetic"}]
     assert client.post("/v1/web/tasks", json=request, headers=HEADERS).status_code == 422
     assert not manager.tasks
+
+
+def test_followup_task_resolves_base_only_with_matching_owner(web):
+    client, manager = web
+    base_id = str(uuid4())
+    manager.tasks[base_id] = Task(
+        OWNER,
+        uuid4(),
+        "base",
+        time.monotonic(),
+        state="completed",
+        output={"planning": data().model_dump(mode="json")},
+    )
+    followup = {"request_id": str(uuid4()), "idea": "预算换为3000以内", "base_task_id": base_id}
+    other = {**HEADERS, "x-travel-session": "b" * 64}
+    assert client.post("/v1/web/tasks", json=followup, headers=other).status_code == 404
+    captured = []
+
+    def run(request, *, base_planning):
+        captured.append(base_planning.city)
+        return {"planning": base_planning.model_dump(mode="json")}
+
+    manager.runner = run
+    assert client.post("/v1/web/tasks", json=followup, headers=HEADERS).status_code == 202
+    manager.pool.shutdown(wait=True)
+    assert captured == ["南京"]

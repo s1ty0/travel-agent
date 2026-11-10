@@ -121,7 +121,7 @@ export function ResultPanel({ task }: { task: Task | null }) {
           <p>
             {task?.error
               ? (errorText[task.error] ?? "服务暂不可用，请稍后检查。")
-              : "从左边说说你的想法。确认条件后，行程、依据和待核实事项会一起出现在这里。"}
+              : "发送你的旅行想法，即可先看初稿，再补充条件完善安排。"}
           </p>
           <div className="promise-row">
             <span>
@@ -140,6 +140,26 @@ export function ResultPanel({ task }: { task: Task | null }) {
         </div>
       ) : (
         <div className="result-body">
+          {plan?.draft_note && (
+            <div className="notice">
+              <Icon name="info" />
+              <div>
+                <strong>根据已有地点起草的轻量初稿</strong>
+                <p>{plan.draft_note}</p>
+              </div>
+            </div>
+          )}
+          {!!task?.output?.assumptions?.length && (
+            <div className="notice">
+              <Icon name="info" />
+              <div>
+                <strong>初稿采用的条件</strong>
+                {task.output.assumptions.map((text) => (
+                  <p key={text}>{text}</p>
+                ))}
+              </div>
+            </div>
+          )}
           <div
             className={`notice ${result.status !== "draft" ? "warning" : ""}`}
           >
@@ -214,7 +234,7 @@ export function ResultPanel({ task }: { task: Task | null }) {
                 )
               ) : (
                 <p className="muted">
-                  没有可展示的活动，已有失败信息保留在检查面板。
+                  这次还没有形成活动安排。可先查看已取得的来源，再补充条件生成。
                 </p>
               )}
               <div className="budget-box">
@@ -269,6 +289,13 @@ export function ResultPanel({ task }: { task: Task | null }) {
           )}
           {tab === "checks" && (
             <div className="check-list">
+              {!plan && (
+                <p className="section-note">
+                  本次尚未形成待校验的行程。
+                  {errorText[result.issue ?? ""] ??
+                    "请补充城市、日期等条件后再生成。"}
+                </p>
+              )}
               <div className="check-summary">
                 <strong>{failures.length}</strong> 项确定冲突 <b>·</b>
                 <strong>{unknowns.length}</strong> 项待核实

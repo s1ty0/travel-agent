@@ -18,9 +18,14 @@ test("question, confirmation, itinerary, sources, export and refresh", async ({
   await expect(page.getByLabel("目的城市")).toHaveValue("南京");
   await expect(page.getByText("合成测试馆")).toHaveCount(0);
   expect(creations).toBe(0);
-  await page.getByRole("button", { name: "确认条件并生成" }).click();
+  await page.getByRole("button", { name: "发送旅行想法" }).click();
   await expect(page.getByText("合成测试馆")).toBeVisible();
   await expect(page.getByText("尚不能确认")).toBeVisible();
+  await page.getByLabel("旅行总预算").fill("3000以内");
+  await page.getByRole("button", { name: "按补充条件更新行程" }).click();
+  await expect(
+    page.getByRole("button", { name: "查看上一版行程" }),
+  ).toBeVisible();
   await page.getByRole("tab", { name: /来源与依据/ }).click();
   await expect(page.getByRole("link", { name: "合成来源" })).toHaveAttribute(
     "href",
@@ -33,7 +38,7 @@ test("question, confirmation, itinerary, sources, export and refresh", async ({
   expect((await download).suggestedFilename()).toBe("旅行规划草案.md");
   await page.reload();
   await expect(page.getByText("合成测试馆")).toBeVisible();
-  expect(creations).toBe(1);
+  expect(creations).toBe(2);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

@@ -57,6 +57,7 @@ class PlanningInput(Contract):
 
 
 class PlannerLimits(Contract):
+    allow_rule_draft: bool = False
     service_cap_minor: Annotated[int, Field(strict=True, ge=1, le=200)] = 200
     max_model_calls: Annotated[int, Field(strict=True, ge=1, le=4)] = 4
     max_source_calls: Annotated[int, Field(strict=True, ge=1, le=6)] = 5
