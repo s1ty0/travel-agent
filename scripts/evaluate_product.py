@@ -21,7 +21,7 @@ MODES = ("single_agent", "parallel_tools", "multi_agent")
 
 
 def load_cases(split):
-    raw = FIXTURE.read_bytes()
+    raw = FIXTURE.read_bytes().replace(b"\r\n", b"\n")
     expected = FIXTURE.with_suffix(".sha256").read_text().strip()
     if hashlib.sha256(raw).hexdigest() != expected:
         raise ValueError("frozen_product_fixture_changed")

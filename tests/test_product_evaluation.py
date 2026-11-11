@@ -42,6 +42,18 @@ def test_frozen_fixture_hash_rejects_modified_cases(tmp_path, monkeypatch):
         evaluation.load_cases("development")
 
 
+def test_frozen_fixture_digest_is_stable_across_windows_and_linux_line_endings(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "cases.json"
+    raw = evaluation.FIXTURE.read_bytes().replace(b"\r\n", b"\n")
+    path.write_bytes(raw.replace(b"\n", b"\r\n"))
+    path.with_suffix(".sha256").write_text(DIGEST, encoding="ascii")
+    monkeypatch.setattr(evaluation, "FIXTURE", path)
+    cases, digest = evaluation.load_cases("development")
+    assert cases == DEVELOPMENT and digest == DIGEST
+
+
 def test_metric_cannot_count_a_known_conflict_as_a_successful_draft():
     case = DEVELOPMENT[0]
     synthetic = SyntheticProviders()
