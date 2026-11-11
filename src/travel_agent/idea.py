@@ -150,5 +150,6 @@ def extract_idea(text, settings, prices, ledger, *, transport=None, timeout=30, 
         city=destination or "待选择目的城市",
         trip=trip,
         constraints=base.constraints if base else {},
+        day_window=base.day_window if base else None,
     )
     return planning, assumptions

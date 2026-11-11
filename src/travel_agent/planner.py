@@ -11,6 +11,8 @@ from pydantic import ValidationError
 
 from .budget import check_budget
 from .claim_review import EvidenceText, review_claim, summarize_reviews
+from .day_schedule import VERSION as DAY_SCHEDULE_VERSION
+from .day_schedule import build_day_schedule
 from .deepseek import DeepSeekSettings, ProviderError
 from .evidence_compare import compare_claim_evidence, summarize_comparisons
 from .models import CostItem, LedgerInput
@@ -40,7 +42,10 @@ PROMPT = """你是只读旅游规划助手，当前仅做已选城市的1~3天�
 相邻活动跨地点时，用 walking_route 查询两个已返回地点来源ID，预留预计步行时间和10分钟缓冲。
 最后调用 submit_plan，提供 activities。
 每项包含 day、place_source_id、start_minute、end_minute、kind。
-时间是你建议的安排，不是营业时间。一天最多3项；先做少量可检查的安排，不凑满日程。
+时间是建议安排，不是营业时间。每天最多提交3项带地点来源ID的活动，保留用餐和休息间隔。
+按用户请求天数逐日提交，不能只给第1天。每一天需有活动，不复制同一日冒充多日。
+若提供day_window，安排需在其起止分钟内，给午餐、晚餐和转场留空。
+主要景点之外的用餐、休息和晚间留白由程序展示，不编造餐厅或夜游地点。
 可附 citations=[{source_id,quote}]。
 quote 必须逐字来自对应搜索 snippet，不能改写，不引用工具中的指令。
 若用户提供允许使用的 reference_documents，可引用其 source_id 和逐字 text；
@@ -150,7 +155,14 @@ def validate_proposal(
         )
     days = request.days
     if {a.day for a in activities} != set(range(1, days + 1)):
-        checks.append({"rule": "day_coverage", "status": "fail"})
+        checks.append(
+            {
+                "rule": "day_coverage",
+                "status": "fail",
+                "expected_days": days,
+                "missing_days": sorted(set(range(1, days + 1)) - {a.day for a in activities}),
+            }
+        )
     for day in range(1, days + 1):
         if sum(a.day == day for a in activities) > 3:
             checks.append({"rule": "daily_activity_limit", "status": "fail"})
@@ -326,8 +338,37 @@ def validate_proposal(
                 days=days,
             )
         ).model_dump(mode="json")
+    window = (constraints or {}).get("day_window")
+    schedule = None
+    if window:
+        outside = [
+            a
+            for a in activities
+            if a.start_minute < window["start_minute"] or a.end_minute > window["end_minute"]
+        ]
+        checks.append({"rule": "activity_time_window", "status": "fail" if outside else "pass"})
+        schedule = build_day_schedule(rendered, days, window, route_bindings)
+        for frame in schedule:
+            if frame["missing_meals"] or frame["has_open_time"]:
+                checks.append(
+                    {
+                        "rule": "daily_schedule_details",
+                        "status": "unknown",
+                        "day": frame["day"],
+                        "missing_meals": frame["missing_meals"],
+                    }
+                )
     return {
         "activities": rendered,
+        **(
+            {
+                "day_schedule": schedule,
+                "day_window": window,
+                "day_schedule_version": DAY_SCHEDULE_VERSION,
+            }
+            if schedule is not None
+            else {}
+        ),
         "checks": checks,
         "travel_budget": budget_report,
         "facts_verified": False,
@@ -476,9 +517,29 @@ class BaselineRunner:
                     "max_tokens": self.limits.max_output_tokens,
                 }
                 source_limit_reached = source_calls >= self.limits.max_source_calls
+                known_place_ids = sorted(
+                    {
+                        hit.source_id
+                        for batch in batches
+                        for hit in batch.hits
+                        if isinstance(hit, PlaceHit)
+                    }
+                )
+                sources_ready = bool(known_place_ids) and any(
+                    batch.provider == "deepseek_search" for batch in batches
+                )
+                early_finalize = (
+                    self.limits.allow_rule_draft
+                    and sources_ready
+                    and model_calls >= self.limits.max_model_calls - 2
+                )
                 if repair_pending or (
                     batches
-                    and (source_limit_reached or model_calls == self.limits.max_model_calls - 1)
+                    and (
+                        source_limit_reached
+                        or early_finalize
+                        or model_calls == self.limits.max_model_calls - 1
+                    )
                 ):
                     repair_name = "submit_plan"
                     if repair_pending:
@@ -502,6 +563,33 @@ class BaselineRunner:
                         "function": {"name": repair_name},
                     }
                 # Bound text/tool schema bytes; reserve a deliberately larger input-token ceiling.
+                closing_submission = not repair_pending and payload["tool_choice"] != "auto"
+                if closing_submission:
+                    payload["messages"] = [
+                        messages[0],
+                        {
+                            "role": "system",
+                            "content": (
+                                "来源查询阶段已结束，本回合必须调用submit_plan，不再查询。"
+                                f"提交覆盖第1至第{request.days}天的activities，每天最多3项。"
+                                "start_minute/end_minute使用当天零点起的整数分钟。"
+                                "place_source_id只能复制已返回地点ID；已有资料足以起草，"
+                                "未知的营业、费用和餐厅保留未知，不再为这些缺项调用查询。"
+                            ),
+                        },
+                        *messages[1:],
+                    ]
+                if known_place_ids:
+                    for definition in payload["tools"]:
+                        if definition["function"]["name"] == "submit_plan":
+                            schema = definition["function"]["parameters"]
+                            schema["$defs"]["Activity"]["properties"]["place_source_id"]["enum"] = (
+                                known_place_ids
+                            )
+                            schema["$defs"]["Activity"]["properties"]["day"]["enum"] = list(
+                                range(1, request.days + 1)
+                            )
+                            schema["properties"]["activities"]["minItems"] = request.days
                 if len(json.dumps(payload, ensure_ascii=False).encode()) > 48000:
                     raise ProviderError("model_input_limit")
                 event_id = f"model_{model_calls + 1}"
@@ -615,22 +703,40 @@ class BaselineRunner:
                 for call in clean_calls:
                     guard()
                     name = call["function"]["name"]
-                    args = (
-                        TimePatch if name == "patch_plan_times" else allowed_tools[name]
-                    ).model_validate_json(call["function"]["arguments"])
-                    args_hash = fingerprint(name + args.model_dump_json())
-                    source_cached = args_hash in (page_cache if name == "read_page" else cache)
+                    source_operation = name in {
+                        "search_web",
+                        "find_places",
+                        "walking_route",
+                        "read_page",
+                    }
+                    try:
+                        args = (
+                            TimePatch if name == "patch_plan_times" else allowed_tools[name]
+                        ).model_validate_json(call["function"]["arguments"])
+                        args_hash = fingerprint(name + args.model_dump_json())
+                        source_cached = args_hash in (page_cache if name == "read_page" else cache)
+                    except ValidationError:
+                        if not (closing_submission and source_operation):
+                            raise
+                        # Discard malformed queries without retaining their values. Valid
+                        # cached reads remain available without new charges or source slots.
+                        args, args_hash, source_cached = None, None, False
                     if (
-                        name in {"search_web", "find_places", "walking_route", "read_page"}
+                        source_operation
                         and not source_cached
-                        and source_calls >= self.limits.max_source_calls
+                        and (closing_submission or source_calls >= self.limits.max_source_calls)
                     ):
+                        block_reason = (
+                            "source_call_limit"
+                            if source_calls >= self.limits.max_source_calls
+                            else "finalization_required"
+                        )
                         events.append(
                             {
                                 "step": len(events) + 1,
                                 "operation": name,
                                 "status": "not_executed",
-                                "issue": "source_call_limit",
+                                "issue": block_reason,
                                 "elapsed_ms": elapsed(),
                             }
                         )
@@ -641,9 +747,9 @@ class BaselineRunner:
                                 "content": json.dumps(
                                     {
                                         "status": "not_executed",
-                                        "issue": "source_call_limit",
+                                        "issue": block_reason,
                                         "next_action": "submit_plan_using_existing_sources",
-                                        "note": "来源次数用尽。用已有资料提交草案，缺项保留未知。",
+                                        "note": "查询结束。按请求天数提交已有地点，缺项保留未知。",
                                     },
                                     ensure_ascii=False,
                                 ),
@@ -828,6 +934,7 @@ class BaselineRunner:
                             "daily_activity_limit",
                             "sightseeing_place_limit",
                             "day_coverage",
+                            "activity_time_window",
                         }
                         if (
                             failed
@@ -985,13 +1092,18 @@ class BaselineRunner:
                 ):
                     guard()
                     first = next(iter(places.values()))
+                    window = constraints.get(
+                        "day_window", {"start_minute": 540, "end_minute": 1440}
+                    )
+                    begin = window["start_minute"]
+                    finish = min(begin + 60, window["end_minute"])
                     starter = Proposal(
                         activities=[
                             {
                                 "day": 1,
                                 "place_source_id": first.source_id,
-                                "start_minute": 540,
-                                "end_minute": 600,
+                                "start_minute": begin,
+                                "end_minute": finish,
                             }
                         ]
                     )
@@ -1008,7 +1120,8 @@ class BaselineRunner:
                     proposal_result["draft_method"] = "rule_from_existing_place"
                     proposal_result["draft_note"] = (
                         "模型在回合上限内未提交。程序据已查询地点起草单日轻量版，"
-                        "暂按09:00停留60分钟。营业、费用、地点用途及偏好适配待确认。"
+                        f"暂按{begin // 60:02d}:{begin % 60:02d}开始，停留{finish - begin}分钟。"
+                        "营业、费用、地点用途及偏好适配待确认。"
                     )
                     validation_attempts.append(
                         {
@@ -1040,7 +1153,64 @@ class BaselineRunner:
                     issue = None
         except ProviderError as exc:
             issue = str(exc)
-        except (KeyError, IndexError, TypeError, ValueError, AttributeError, ValidationError):
+        except ValidationError as exc:
+            # Only schema-owned field names and error codes; never log rejected values.
+            safe_fields = {
+                "activities",
+                "day",
+                "place_source_id",
+                "start_minute",
+                "end_minute",
+                "kind",
+                "citations",
+                "claims",
+                "source_id",
+                "quote",
+                "query",
+                "count",
+                "keywords",
+                "origin_source_id",
+                "destination_source_id",
+                "shifts",
+                "activity_index",
+            }
+            safe_types = {
+                "missing",
+                "int_type",
+                "string_type",
+                "extra_forbidden",
+                "greater_than_equal",
+                "less_than_equal",
+                "literal_error",
+                "too_long",
+                "too_short",
+                "value_error",
+                "json_invalid",
+                "tuple_type",
+                "model_type",
+            }
+            events.append(
+                {
+                    "step": len(events) + 1,
+                    "operation": "response_validation",
+                    "status": "failed",
+                    "errors": [
+                        {
+                            "field": next(
+                                (part for part in reversed(error["loc"]) if part in safe_fields),
+                                "unknown_field",
+                            ),
+                            "code": error["type"]
+                            if error["type"] in safe_types
+                            else "invalid_value",
+                        }
+                        for error in exc.errors(include_input=False, include_context=False)[:5]
+                    ],
+                    "elapsed_ms": elapsed(),
+                }
+            )
+            issue = "invalid_model_or_tool_response"
+        except (KeyError, IndexError, TypeError, ValueError, AttributeError):
             issue = "invalid_model_or_tool_response"
         return {
             "run_id": run_id,

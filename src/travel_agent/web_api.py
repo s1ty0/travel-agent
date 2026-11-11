@@ -22,7 +22,7 @@ from .models import Contract
 from .plan_render import render_markdown
 from .planner import BaselineRunner
 from .planner_cli import save_run
-from .planning_models import PlannerLimits, PlanningInput
+from .planning_models import DayWindow, PlannerLimits, PlanningInput
 from .service_budget import PriceCard, ServiceBudget
 from .source_models import SourceBatch
 from .sources import amap_key_from_env, fingerprint
@@ -35,7 +35,7 @@ class WebPlanRequest(Contract):
     planning: PlanningInput | None = None
     idea: Annotated[str, Field(min_length=1, max_length=2000)] | None = None
     base_task_id: UUID | None = None
-    max_replans: Annotated[int, Field(strict=True, ge=0, le=1)] = 0
+    max_replans: Annotated[int, Field(strict=True, ge=0, le=1)] = 1
 
     @model_validator(mode="after")
     def one_input(self):
@@ -122,6 +122,9 @@ def run_plan(data: WebPlanRequest, *, base_planning=None):
                     "elapsed_ms": int((monotonic() - start) * 1000),
                 },
             }
+    if planning.day_window is None:
+        planning = planning.model_copy(update={"day_window": DayWindow()})
+        assumptions.append("每日时间框架暂按09:00至20:00，可在条件栏调整。")
     result = runner.run(
         planning,
         ledger=ledger,

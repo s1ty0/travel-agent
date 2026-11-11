@@ -763,6 +763,21 @@ h1 span {
   font-weight: 500;
   margin: 7px 0;
 }
+.schedule-suggestion {
+  background: #f5f6ed;
+  border-style: dashed;
+}
+.schedule-suggestion h4 {
+  font-size: 14px;
+}
+.schedule-suggestion p {
+  display: block;
+  line-height: 1.8;
+}
+.missing-day {
+  background: #fcf1e8;
+  border-color: #dfc7b1;
+}
 .activity-card p {
   display: flex;
   align-items: center;

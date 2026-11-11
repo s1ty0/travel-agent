@@ -15,11 +15,12 @@ def _signature(activity):
 
 def repair_mode(failed_rules):
     rules = set(failed_rules)
-    if rules <= {"time_overlap", "transfer_duration"}:
+    if rules <= {"time_overlap", "transfer_duration", "activity_time_window"}:
         return "shift_times_only"
     if rules <= {
         "time_overlap",
         "transfer_duration",
+        "activity_time_window",
         "sightseeing_place_limit",
         "daily_activity_limit",
     }:

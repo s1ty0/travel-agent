@@ -27,6 +27,37 @@ export const completed: Task = {
         reserved_unsettled: 0,
       },
       plan: {
+        day_window: { start_minute: 540, end_minute: 1200 },
+        day_schedule: [
+          {
+            day: 1,
+            missing_day: false,
+            missing_meals: [],
+            has_open_time: true,
+            blocks: [
+              {
+                kind: "activity",
+                activity_index: 0,
+                start_minute: 540,
+                end_minute: 600,
+              },
+              {
+                kind: "meal",
+                title: "晚餐 · 餐厅待选",
+                note: "具体餐厅和价格待查",
+                start_minute: 1080,
+                end_minute: 1140,
+              },
+              {
+                kind: "open_time",
+                title: "晚间自由活动或返程 · 待确认",
+                note: "具体地点与交通待补充",
+                start_minute: 1140,
+                end_minute: 1200,
+              },
+            ],
+          },
+        ],
         facts_verified: false,
         missing_fields: ["start_date"],
         travel_budget: { status: "uncertain" },

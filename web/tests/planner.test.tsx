@@ -4,6 +4,7 @@ import Planner from "../components/Planner";
 import { ResultPanel } from "../components/ResultPanel";
 import { safeLink } from "../lib/contracts";
 import { completed } from "./fixtures";
+import type { Task } from "../lib/contracts";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -48,6 +49,8 @@ test("sending an idea creates a first draft before condition refinement", async 
     expect(submitted?.planning).toMatchObject({
       city: "南京",
       trip: { budget: "3000以内" },
+      constraints: {},
+      day_window: { start_minute: 540, end_minute: 1200 },
     }),
   );
   expect(screen.getByRole("button", { name: "查看上一版行程" })).toBeVisible();
@@ -100,4 +103,70 @@ test("refresh resumes the same task without a second creation request", async ()
   expect(
     fetcher.mock.calls.every(([, options]) => options?.method !== "POST"),
   ).toBe(true);
+});
+
+test("missing requested days and unfinished evening are visible in the itinerary", () => {
+  const task = structuredClone(completed) as Task;
+  if (!task.output?.result.plan) throw new Error("missing fixture plan");
+  const plan = task.output.result.plan;
+  task.output.result.status = "invalid_plan";
+  plan.checks = [
+    {
+      rule: "day_coverage",
+      status: "fail",
+      expected_days: 2,
+      missing_days: [2],
+    },
+  ];
+  plan.day_window = { start_minute: 540, end_minute: 1200 };
+  plan.day_schedule = [
+    {
+      day: 1,
+      missing_day: false,
+      missing_meals: [],
+      has_open_time: true,
+      blocks: [
+        {
+          kind: "activity",
+          activity_index: 0,
+          start_minute: 540,
+          end_minute: 600,
+        },
+        {
+          kind: "meal",
+          start_minute: 1080,
+          end_minute: 1140,
+          title: "晚餐 · 餐厅待选",
+          note: "营业和价格待查询",
+        },
+        {
+          kind: "open_time",
+          start_minute: 1140,
+          end_minute: 1200,
+          title: "晚间自由活动或返程 · 待确认",
+          note: "具体地点待选",
+        },
+      ],
+    },
+    {
+      day: 2,
+      missing_day: true,
+      missing_meals: [],
+      has_open_time: true,
+      blocks: [
+        {
+          kind: "unplanned_day",
+          start_minute: 540,
+          end_minute: 1200,
+          title: "这一天尚未安排",
+          note: "缺少本日活动",
+        },
+      ],
+    },
+  ];
+  render(<ResultPanel task={task} />);
+  expect(screen.getByRole("alert")).toHaveTextContent("第2天尚未安排");
+  expect(screen.getByText("晚餐 · 餐厅待选")).toBeVisible();
+  expect(screen.getByText("晚间自由活动或返程 · 待确认")).toBeVisible();
+  expect(screen.getByText("这一天尚未安排")).toBeVisible();
 });

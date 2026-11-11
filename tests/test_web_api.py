@@ -77,7 +77,7 @@ def test_tasks_are_private_and_repeated_submission_reuses_same_task(web):
     assert client.get(f"/v1/web/tasks/{task_id}", headers=HEADERS).status_code == 200
     other = {**HEADERS, "x-travel-session": "b" * 64}
     assert client.get(f"/v1/web/tasks/{task_id}", headers=other).status_code == 404
-    request["max_replans"] = 1
+    request["max_replans"] = 0
     assert client.post("/v1/web/tasks", json=request, headers=HEADERS).status_code == 409
 
 

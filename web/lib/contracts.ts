@@ -4,6 +4,23 @@ export type Check = {
   status: "pass" | "fail" | "unknown";
   required_minutes?: number;
   available_minutes?: number;
+  missing_days?: number[];
+  expected_days?: number;
+};
+export type ScheduleBlock = {
+  kind: string;
+  start_minute: number;
+  end_minute: number;
+  activity_index?: number;
+  title?: string;
+  note?: string;
+};
+export type DaySchedule = {
+  day: number;
+  blocks: ScheduleBlock[];
+  missing_day: boolean;
+  missing_meals: string[];
+  has_open_time: boolean;
 };
 export type Activity = {
   day: number;
@@ -34,6 +51,8 @@ export type Result = {
     draft_note?: string;
     draft_method?: string;
     activities: Activity[];
+    day_schedule?: DaySchedule[];
+    day_window?: { start_minute: number; end_minute: number };
     checks: Check[];
     facts_verified: boolean;
     missing_fields: string[];
@@ -62,6 +81,7 @@ export type Task = {
     assumptions?: string[];
     planning?: {
       city: string;
+      day_window?: { start_minute: number; end_minute: number } | null;
       trip: {
         budget?: string | null;
         days?: number | null;
@@ -89,6 +109,8 @@ export const errorText: Record<string, string> = {
   service_budget_exhausted: "服务调用预算不足，已停止后续调用。",
   source_call_limit: "已达到本次来源查询上限。",
   model_call_limit: "已达到本次模型回合上限。",
+  invalid_model_or_tool_response:
+    "模型返回的安排或查询格式不符合要求，本次已停止，没有自动重试。",
   run_time_limit: "已达到本次规划耗时上限。",
   base_conditions_unavailable: "上一版条件尚不可用，请先填写目的城市等条件。",
   select_exact_destination_and_1_to_3_days:
@@ -113,8 +135,21 @@ export const ruleText: Record<string, string> = {
   time_overlap: "时间重叠",
   transfer_duration: "交通衔接",
   day_coverage: "逐日覆盖",
-  daily_activity_limit: "每天活动数",
+  daily_activity_limit: "每天地点活动数",
   claim_evidence_review: "主张依据",
   repair_scope_violation: "修正范围",
   reference_quote: "资料引用",
+  activity_time_window: "每日起止时间",
+  daily_schedule_details: "用餐与自由时段待细化",
 };
+
+export function checkDescription(check: Check) {
+  if (check.rule === "day_coverage" && check.missing_days?.length)
+    return `第${check.missing_days.join("、")}天尚未安排，需要补齐请求的${check.expected_days ?? "全部"}天行程。`;
+  if (
+    check.rule === "transfer_duration" &&
+    check.required_minutes !== undefined
+  )
+    return `交通衔接需${check.required_minutes}分钟，当前间隔${check.available_minutes ?? "未知"}分钟。`;
+  return ruleText[check.rule] ?? check.rule;
+}

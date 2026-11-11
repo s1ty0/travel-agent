@@ -56,9 +56,11 @@ export default function Planner() {
   const [days, setDays] = useState(1);
   const [adults, setAdults] = useState<number | "">("");
   const [startDate, setStartDate] = useState("");
+  const [dayStart, setDayStart] = useState("09:00");
+  const [dayEnd, setDayEnd] = useState("20:00");
   const [origin, setOrigin] = useState("");
-  const [sights, setSights] = useState(2);
-  const [allowRepair, setAllowRepair] = useState(false);
+  const [sights, setSights] = useState<number | "auto">("auto");
+  const [allowRepair, setAllowRepair] = useState(true);
   const [enabled, setEnabled] = useState(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState("");
@@ -77,9 +79,18 @@ export default function Planner() {
     setCity(planning.city === "待选择目的城市" ? "" : planning.city);
     setBudget(planning.trip.budget ?? "");
     setDays(planning.trip.days ?? 1);
+    setSights(planning.constraints?.max_sightseeing_places ?? "auto");
     setAdults(planning.trip.adults ?? "");
     setOrigin(planning.trip.origin ?? "");
     setStartDate(planning.trip.start_date ?? "");
+    if (planning.day_window) {
+      const time = (value: number) =>
+        `${Math.floor(value / 60)
+          .toString()
+          .padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
+      setDayStart(time(planning.day_window.start_minute));
+      setDayEnd(time(planning.day_window.end_minute));
+    }
     if (planning.trip.raw_text) setMessage(planning.trip.raw_text);
     setAsked(true);
   }, []);
@@ -158,8 +169,10 @@ export default function Planner() {
     setAdults("");
     setOrigin("");
     setStartDate("");
-    setSights(2);
-    setAllowRepair(false);
+    setDayStart("09:00");
+    setDayEnd("20:00");
+    setSights("auto");
+    setAllowRepair(true);
     requestId.current = null;
     sessionStorage.removeItem("travel_task");
   }
@@ -185,6 +198,12 @@ export default function Planner() {
         : {
             planning: {
               city: city.trim(),
+              day_window: {
+                start_minute:
+                  Number(dayStart.slice(0, 2)) * 60 + Number(dayStart.slice(3)),
+                end_minute:
+                  Number(dayEnd.slice(0, 2)) * 60 + Number(dayEnd.slice(3)),
+              },
               trip: {
                 raw_text: message.trim(),
                 destination: city.trim(),
@@ -194,7 +213,8 @@ export default function Planner() {
                 ...(startDate ? { start_date: startDate } : {}),
                 ...(origin.trim() ? { origin: origin.trim() } : {}),
               },
-              constraints: { max_sightseeing_places: sights },
+              constraints:
+                sights === "auto" ? {} : { max_sightseeing_places: sights },
             },
           }),
     };
@@ -435,6 +455,28 @@ export default function Planner() {
                     <summary>
                       更多条件 <span>出发地、景点上限与修正</span>
                     </summary>
+                    <div className="field-row">
+                      <label>
+                        每天开始时间
+                        <input
+                          type="time"
+                          required
+                          value={dayStart}
+                          disabled={busy}
+                          onChange={(event) => setDayStart(event.target.value)}
+                        />
+                      </label>
+                      <label>
+                        每天结束时间
+                        <input
+                          type="time"
+                          required
+                          value={dayEnd}
+                          disabled={busy}
+                          onChange={(event) => setDayEnd(event.target.value)}
+                        />
+                      </label>
+                    </div>
                     <label>
                       出发地 <small>可留空</small>
                       <input
@@ -453,9 +495,14 @@ export default function Planner() {
                         value={sights}
                         disabled={busy}
                         onChange={(event) =>
-                          setSights(Number(event.target.value))
+                          setSights(
+                            event.target.value === "auto"
+                              ? "auto"
+                              : Number(event.target.value),
+                          )
                         }
                       >
+                        <option value="auto">按天数与偏好安排</option>
                         {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
                           <option key={n} value={n}>
                             {n} 处

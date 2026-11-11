@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Icon } from "./Icon";
 import { JourneyArt } from "./JourneyArt";
+import { DailyItinerary } from "./DailyItinerary";
 import {
   errorText,
-  minute,
-  ruleText,
+  checkDescription,
   safeLink,
   type Task,
 } from "../lib/contracts";
@@ -140,6 +140,17 @@ export function ResultPanel({ task }: { task: Task | null }) {
         </div>
       ) : (
         <div className="result-body">
+          {failures.length > 0 && (
+            <div className="notice warning" role="alert">
+              <Icon name="info" />
+              <div>
+                <strong>需要处理的具体问题</strong>
+                {keyed(failures).map(({ value, key }) => (
+                  <p key={key}>{checkDescription(value)}</p>
+                ))}
+              </div>
+            </div>
+          )}
           {plan?.draft_note && (
             <div className="notice">
               <Icon name="info" />
@@ -179,63 +190,10 @@ export function ResultPanel({ task }: { task: Task | null }) {
           </div>
           {tab === "itinerary" && (
             <>
-              {plan?.activities.length ? (
-                [...new Set(plan.activities.map((item) => item.day))].map(
-                  (day) => (
-                    <div key={day} className="day-block">
-                      <div className="day-title">
-                        <span>DAY {String(day).padStart(2, "0")}</span>
-                        <h3>
-                          第 {day} 天 <small>建议安排</small>
-                        </h3>
-                      </div>
-                      <div className="timeline">
-                        {keyed(
-                          plan.activities.filter((item) => item.day === day),
-                        ).map(({ value: item, key }) => (
-                          <article key={key} className="activity">
-                            <div className="time">
-                              <strong>{minute(item.start_minute)}</strong>
-                              <span>{minute(item.end_minute)}</span>
-                            </div>
-                            <div className="activity-line">
-                              <i />
-                            </div>
-                            <div className="activity-card">
-                              <div className="activity-label">
-                                <span>
-                                  {item.kind === "meal"
-                                    ? "餐饮"
-                                    : item.kind === "rest"
-                                      ? "休息"
-                                      : "游览"}
-                                </span>
-                                <span>待核实</span>
-                              </div>
-                              <h4>{item.place_name}</h4>
-                              <p>
-                                <Icon name="pin" size={14} />
-                                {item.address || "地址待核实"}
-                              </p>
-                              {item.citations?.slice(0, 1).map((citation) => (
-                                <blockquote key={citation.source_id}>
-                                  “{citation.quote}”
-                                  <small>
-                                    来源片段 · 仅证明文字可定位，事实仍待核实
-                                  </small>
-                                </blockquote>
-                              ))}
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  ),
-                )
+              {plan ? (
+                <DailyItinerary plan={plan} />
               ) : (
-                <p className="muted">
-                  这次还没有形成活动安排。可先查看已取得的来源，再补充条件生成。
-                </p>
+                <p className="muted">本次尚未形成活动安排，请查看具体缺口。</p>
               )}
               <div className="budget-box">
                 <div>
@@ -305,7 +263,7 @@ export function ResultPanel({ task }: { task: Task | null }) {
               </p>
               {keyed(plan?.checks ?? []).map(({ value: item, key }) => (
                 <div className="check-item" key={key}>
-                  <span>{ruleText[item.rule] || item.rule}</span>
+                  <span>{checkDescription(item)}</span>
                   <span className={`check-state ${item.status}`}>
                     {item.status === "pass"
                       ? "规则满足"

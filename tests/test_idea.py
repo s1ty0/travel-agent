@@ -146,7 +146,8 @@ def test_web_idea_orchestration_preserves_same_limits_and_fills_editable_conditi
         WebPlanRequest(request_id="00000000-0000-4000-8000-000000000000", idea="南京")
     )
     assert output["planning"]["city"] == "南京"
-    assert output["assumptions"] == ["测试假设"] and output["audit_saved"]
+    assert "测试假设" in output["assumptions"] and output["audit_saved"]
+    assert any("09:00至20:00" in note for note in output["assumptions"])
     assert output["result"]["model_calls"] == 4 and counts["model"] == 3
 
 

@@ -15,10 +15,22 @@ class PlanningConstraints(Contract):
     max_sightseeing_places: Annotated[int, Field(strict=True, ge=1, le=9)] | None = None
 
 
+class DayWindow(Contract):
+    start_minute: Annotated[int, Field(strict=True, ge=0, le=1439)] = 540
+    end_minute: Annotated[int, Field(strict=True, ge=1, le=1440)] = 1200
+
+    @model_validator(mode="after")
+    def valid_window(self):
+        if self.end_minute <= self.start_minute:
+            raise ValueError("day_window_end_before_start")
+        return self
+
+
 class PlanningInput(Contract):
     city: Text
     trip: IntakeInput
     constraints: PlanningConstraints = PlanningConstraints()
+    day_window: DayWindow | None = None
     references: Annotated[tuple[ReferenceInput, ...], Field(max_length=5)] = ()
     page_urls: Annotated[
         tuple[str, ...],
@@ -53,6 +65,7 @@ class PlanningInput(Contract):
             "explicit_limit": explicit,
             "literal_single_sight_preference": literal_single,
             "other_preferences": "not_fully_validated",
+            **({"day_window": self.day_window.model_dump()} if self.day_window else {}),
         }
 
 

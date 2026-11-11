@@ -42,6 +42,16 @@ def save_run(result, path: Path):
     }
     metadata["claim_review_summary"] = (result.get("plan") or {}).get("claim_review_summary")
     metadata["cross_source_summary"] = (result.get("plan") or {}).get("cross_source_summary")
+    plan = result.get("plan") or {}
+    if "day_schedule" in plan:
+        frames = plan["day_schedule"]
+        metadata["day_schedule_summary"] = {
+            "version": plan["day_schedule_version"],
+            "days": len(frames),
+            "missing_days": sum(frame["missing_day"] for frame in frames),
+            "missing_meals": sum(len(frame["missing_meals"]) for frame in frames),
+            "open_days": sum(frame["has_open_time"] for frame in frames),
+        }
     with closing(sqlite3.connect(path)) as db, db:
         db.execute(
             "CREATE TABLE IF NOT EXISTS planning_runs "

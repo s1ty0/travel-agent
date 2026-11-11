@@ -37,6 +37,25 @@ def render_markdown(result):
         limit = plan.get("constraints", {}).get("max_sightseeing_places")
         if limit is not None:
             lines.append(f"本次景点上限：全程最多 {limit} 处不同景点，按地点来源 ID 计数。")
+        if plan.get("day_schedule"):
+            lines.extend(["", "## 每日时间框架（建议时段，具体内容待确认）", ""])
+            for frame in plan["day_schedule"]:
+                lines.append(f"### 第 {frame['day']} 天")
+                for block in frame["blocks"]:
+                    title = (
+                        plan["activities"][block["activity_index"]]["place_name"]
+                        if block["kind"] == "activity"
+                        else block["title"]
+                    )
+                    lines.append(
+                        f"- {_time(block['start_minute'])}–{_time(block['end_minute'])} "
+                        + _escape(title)
+                    )
+                    if block.get("note"):
+                        lines.append("  " + _escape(block["note"]))
+                if frame["missing_meals"]:
+                    lines.append("待调整用餐时段：" + "、".join(frame["missing_meals"]))
+            lines.extend(["", "## 已查询地点与依据", ""])
         day = None
         for activity in plan["activities"]:
             if activity["day"] != day:

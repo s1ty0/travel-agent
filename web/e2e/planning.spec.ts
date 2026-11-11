@@ -21,6 +21,8 @@ test("question, confirmation, itinerary, sources, export and refresh", async ({
   await page.getByRole("button", { name: "发送旅行想法" }).click();
   await expect(page.getByText("合成测试馆")).toBeVisible();
   await expect(page.getByText("尚不能确认")).toBeVisible();
+  await expect(page.getByText("晚餐 · 餐厅待选")).toBeVisible();
+  await expect(page.getByText("晚间自由活动或返程 · 待确认")).toBeVisible();
   await page.getByLabel("旅行总预算").fill("3000以内");
   await page.getByRole("button", { name: "按补充条件更新行程" }).click();
   await expect(
