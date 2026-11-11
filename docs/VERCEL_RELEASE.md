@@ -1,6 +1,6 @@
 # Vercel 公开发布检查
 
-当前版本可以在本机使用真实来源生成单城行程草案。面向公众的真实规划服务暂缓发布。以下判断针对现有仓库和公开文档，尚未创建 Vercel 项目或预发布环境。
+当前版本可以在本机使用真实来源生成单城行程草案。受保护 Vercel Preview 已通过合成云端联调，面向公众的真实规划服务尚待供应商授权与生产验收。[云端验证记录](devlogs/2026-11-11-vercel-preview.md)
 
 首发按用户确认跳过小红书。匿名会话首次进入可保存自己的 DeepSeek Key 或先试用；不引入账号。
 
@@ -12,7 +12,7 @@
 | 高德权限 | 现有 Key 已通过本机联调，免费配额耗尽即停。 | 按实际账号和产品确认公开访问、数据展示及保存范围。核实地点和路线能否进入任务历史与导出。如有缺口，按获准范围改数据保留或替换来源。 |
 | 发布验收 | 本机真实冒烟和离线 CI 已有记录。 | 在候选部署环境执行[正式测试门禁](TESTING.md)，重点实测中国大陆目标网络、真实来源、权限隔离、并发和限额、进程重启、备份恢复与回滚。 |
 
-创建两个 Vercel 项目。Next.js 项目的代码根目录是 `web`，FastAPI 项目使用仓库根目录 `app.py`。后者只挂载已有桥接鉴权的规划接口，`/health` 只返回健康状态。数据库从 Vercel Marketplace 接入 Neon Preview，持久历史与工作进程共享。供应商密钥放在后端项目。[Vercel FastAPI 文档](https://vercel.com/docs/frameworks/backend/fastapi) · [仓库根目录设置](https://vercel.com/docs/monorepos) · [Vercel 的 SQLite 说明](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel)
+两个 Vercel 项目已建立。Next.js 项目的代码根目录是 `web`，FastAPI 项目使用仓库根目录 `app.py`。后者只挂载已有桥接鉴权的规划接口，`/health` 只返回健康状态。数据库从 Vercel Marketplace 接入 Neon Preview，持久历史与工作入口共享。供应商密钥放在后端项目。[Vercel FastAPI 文档](https://vercel.com/docs/frameworks/backend/fastapi) · [仓库根目录设置](https://vercel.com/docs/monorepos) · [Vercel 的 SQLite 说明](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel)
 
 ## 预发布配置
 

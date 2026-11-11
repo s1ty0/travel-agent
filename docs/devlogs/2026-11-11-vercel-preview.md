@@ -6,6 +6,8 @@
 
 Neon 真实测试中出现连接和锁等待超时，并发现 PostgreSQL 字典行直接解包得到字段名。修复后合并清理请求、调整连接和锁超时、按列取值，两个真实 PostgreSQL 集成场景通过，覆盖并发提交与认领、加密 Key 和跨会话网络试用限额。
 
-Vercel 新项目首次部署会占用 Production 目标。后台首次创建的未配置部署已移除；独立 Preview 保留访问保护，未配置真实供应商凭据。网页首次启动误识别了父目录 FastAPI 框架，单独加 `web/vercel.json` 后重试。准备上线的环境配置和命令见 [Vercel 发布检查](../VERCEL_RELEASE.md)。
+Vercel 新项目首次部署会占用 Production 目标。后台首次创建的未配置部署已移除；独立 Preview 保留访问保护，未配置真实供应商凭据。网页部署时，CLI 从仓库目录读取了父目录的 FastAPI 配置。增加 `web/vercel.json`，并在仓库外的临时网页目录中直接运行 CLI 后构建通过。环境配置和命令见 [Vercel 发布检查](../VERCEL_RELEASE.md)。
 
 本机冒烟13项、固定回归65项、原冻结验收10/10和669项全量测试通过，两个真实数据库场景单独运行。前端22项、类型、格式、生产构建与 npm audit 通过。真实模式仍须核实高德公开使用、数据展示和留存权限，配置生产环境、开启明确的管理员总量后，再跑线上真实冒烟与回滚。
+
+[受保护网页 Preview](https://travel-agent-1fammbga0-tianyu-s-team.vercel.app)已完成云端冒烟。匿名访问被拦截；授权后生成两日合成草案，修改后可读两版；相同请求返回原任务，跨会话返回404，删除后重复请求返回410。实际模型、搜索和地图调用均为0。实现提交 `2b1732d` 的六组 CI 全部通过，含 PostgreSQL 集成和网页浏览器流程。[CI 运行 43020888749](https://github.com/s1ty0/travel-agent/actions/runs/43020888749)
