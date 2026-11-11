@@ -31,6 +31,14 @@ const suggestions = [
     label: "杭州 · 山水之间",
     icon: "compass",
   },
+  {
+    city: "苏州",
+    days: 1,
+    budget: "1500以内",
+    text: "想去苏州古城玩一天，预算1500以内，喜欢园林，安排午餐和晚餐。",
+    label: "苏州 · 古城园林",
+    icon: "compass",
+  },
 ];
 
 async function api(path: string, body?: unknown, deepSeekKey?: string) {
@@ -69,6 +77,7 @@ export default function Planner() {
   const [researchMode, setResearchMode] = useState("single_agent");
   const [enabled, setEnabled] = useState(false);
   const [demo, setDemo] = useState(false);
+  const [supportedCities, setSupportedCities] = useState<string[] | null>(null);
   const [trialPolicy, setTrialPolicy] = useState(false);
   const [deepSeekKey, setDeepSeekKey] = useState("");
   const [hasUserKey, setHasUserKey] = useState(false);
@@ -122,6 +131,9 @@ export default function Planner() {
       .then((data) => {
         setEnabled(data.planning_enabled ?? data.live_enabled);
         setDemo(Boolean(data.demo_mode));
+        setSupportedCities(
+          Array.isArray(data.supported_cities) ? data.supported_cities : null,
+        );
         setTrialPolicy(Boolean(data.trial_policy));
         setHasUserKey(Boolean(data.has_user_key));
         setShowKeyForm(
@@ -531,18 +543,22 @@ export default function Planner() {
             {!asked && (
               <div className="inspiration">
                 <span>选一个想法，再发送即可生成初稿</span>
-                {suggestions.map((item, index) => (
-                  <button
-                    type="button"
-                    key={item.city}
-                    onClick={() => choose(index)}
-                    disabled={busy}
-                  >
-                    <Icon name={item.icon} size={17} />
-                    {item.label}
-                    <Icon name="arrow" size={15} />
-                  </button>
-                ))}
+                {suggestions.map(
+                  (item, index) =>
+                    (!supportedCities ||
+                      supportedCities.includes(item.city)) && (
+                      <button
+                        type="button"
+                        key={item.city}
+                        onClick={() => choose(index)}
+                        disabled={busy}
+                      >
+                        <Icon name={item.icon} size={17} />
+                        {item.label}
+                        <Icon name="arrow" size={15} />
+                      </button>
+                    ),
+                )}
               </div>
             )}
             {asked && (
@@ -737,8 +753,10 @@ export default function Planner() {
                   <div className="scope-note">
                     <Icon name="info" size={15} />
                     <span>
-                      当前支持已选城市 1–3
-                      天草案，市内交通为步行估算。周边筛选、实时票务和完整费用尚未接入。
+                      {supportedCities
+                        ? `当前覆盖${supportedCities.join("、")}的部分城区。`
+                        : "当前支持已选城市。"}
+                      可规划1–3天，市内交通为步行估算。实时票务、住宿库存和总费用待核实。
                     </span>
                   </div>
                   <button
@@ -847,7 +865,7 @@ export default function Planner() {
           <span>
             行迹 TRAIL <i>·</i> 让旅途回归期待
           </span>
-          <span>本地开发预览 · 私有会话保存7天 · 支持导出与删除</span>
+          <span>私有会话保存7天 · 支持导出与删除</span>
         </footer>
       </main>
     </div>

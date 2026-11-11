@@ -68,6 +68,14 @@ def test_cloud_cannot_create_paid_tasks_when_trial_guard_is_disabled(durable_api
     assert result.status_code == 503 and result.json()["detail"] == "trial_not_configured"
 
 
+def test_hosted_api_rejects_demo_configuration(durable_api, monkeypatch):
+    client, _ = durable_api
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("TRAVEL_DEMO_MODE", "1")
+    result = client.get("/v1/web/config", headers=headers())
+    assert result.status_code == 503 and result.json()["detail"] == "cloud_live_required"
+
+
 def test_cloud_worker_endpoint_requires_bridge_and_ownership(durable_api, monkeypatch):
     client, manager = durable_api
     monkeypatch.setenv("TRAVEL_WEB_LIVE", "0")

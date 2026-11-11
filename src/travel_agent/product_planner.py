@@ -54,12 +54,14 @@ class ProductPlanner:
         today=None,
         model_transport=None,
         source_transport=None,
+        map_factory=None,
     ):
         if mode not in {"single_agent", "parallel_tools", "multi_agent"}:
             raise ValueError("invalid_research_mode")
         self.settings, self.key, self.prices, self.mode = settings, key, prices, mode
         self.today = today or date.today()
         self.model_transport, self.source_transport = model_transport, source_transport
+        self.map_factory = map_factory
 
     def run(
         self,
@@ -81,6 +83,7 @@ class ProductPlanner:
             today=self.today,
             model_transport=self.model_transport,
             source_transport=self.source_transport,
+            map_source=self.map_factory(data.city) if self.map_factory else None,
             cancel=cancel,
             progress=progress,
             start=started,
@@ -99,6 +102,8 @@ class ProductPlanner:
             "program_filled_days": 0,
         }
         try:
+            if ctx.map_source is not None and ctx.map_source.data is None:
+                raise ProviderError("open_map_city_unavailable")
             if (
                 request.days not in (1, 2, 3)
                 or not request.destination
@@ -392,7 +397,11 @@ class ProductPlanner:
                 "input": self.prices.input_micro_cny_per_token,
                 "output": self.prices.output_micro_cny_per_token,
             },
-            "amap_cost_basis": "user_confirmed_free_quota_no_paid_fallback",
+            "amap_cost_basis": (
+                "not_used_openstreetmap_snapshot"
+                if self.map_factory
+                else "user_confirmed_free_quota_no_paid_fallback"
+            ),
         }
 
     @staticmethod

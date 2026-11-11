@@ -342,7 +342,7 @@ def test_geo_and_key_configuration_validation(monkeypatch):
     for call in (
         lambda: Coordinate(longitude=float("nan"), latitude=32),
         lambda: Coordinate(longitude=118, latitude=91),
-        lambda: Coordinate(longitude=118, latitude=32, system="WGS84"),
+        lambda: Coordinate(longitude=118, latitude=32, system="unsupported"),
         lambda: PlaceQuery(keywords=" ", city="南京"),
         lambda: PlaceQuery(keywords="公园", city="南京", page=9),
         lambda: NearbyQuery(keywords="餐厅", center=ORIGIN, radius_meters=80000),
@@ -350,6 +350,8 @@ def test_geo_and_key_configuration_validation(monkeypatch):
     ):
         with pytest.raises(ValidationError):
             call()
+    with pytest.raises(ValueError, match="amap_requires_gcj02"):
+        Coordinate(longitude=118, latitude=32, system="WGS84").as_amap()
     monkeypatch.delenv("AMAP_WEB_API_KEY", raising=False)
     with pytest.raises(ProviderError, match="missing_or_invalid_amap_key"):
         amap_key_from_env()

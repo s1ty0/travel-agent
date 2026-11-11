@@ -36,8 +36,10 @@ function Visit({ activity }: { activity: Activity }) {
 
 export function DailyItinerary({
   plan,
+  dates,
 }: {
   plan: NonNullable<Result["plan"]>;
+  dates?: Record<string, string>;
 }) {
   const frames: DaySchedule[] =
     plan.day_schedule ??
@@ -80,6 +82,9 @@ export function DailyItinerary({
             <span>DAY {String(frame.day).padStart(2, "0")}</span>
             <h3>
               第 {frame.day} 天{" "}
+              {dates?.[String(frame.day)] && (
+                <small>{dates[String(frame.day)]} · </small>
+              )}
               {plan.day_windows?.[String(frame.day)] && (
                 <small>
                   {minute(plan.day_windows[String(frame.day)].start_minute)}–

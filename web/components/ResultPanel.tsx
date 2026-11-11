@@ -47,7 +47,9 @@ export function ResultPanel({ task }: { task: Task | null }) {
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "旅行规划草案.md";
+    link.download = result?.trip_sheet
+      ? "旅行行程单-待核实.md"
+      : "旅行规划草案.md";
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -58,7 +60,7 @@ export function ResultPanel({ task }: { task: Task | null }) {
           <span className="eyebrow">YOUR NEXT JOURNEY</span>
           <h2>
             {result
-              ? `${city || "你的旅行"} · 行程草案`
+              ? `${city || "你的旅行"} · ${result.trip_sheet ? "旅行行程单" : "行程草案"}`
               : "你的下一站，听你的。"}
           </h2>
         </div>
@@ -210,7 +212,9 @@ export function ResultPanel({ task }: { task: Task | null }) {
             <div>
               <strong>
                 {result.status === "draft"
-                  ? "已生成草案，出发前还需要核实"
+                  ? result.trip_sheet
+                    ? "行程单已生成，请核对出发前清单"
+                    : "已生成草案，出发前还需要核实"
                   : "这份安排未通过，暂不能按此执行"}
               </strong>
               <p>
@@ -222,8 +226,22 @@ export function ResultPanel({ task }: { task: Task | null }) {
           </div>
           {tab === "itinerary" && (
             <>
+              {result.trip_sheet && (
+                <div className="notice">
+                  <div>
+                    <strong>出行信息</strong>
+                    <p>
+                      出发地 {result.trip_sheet.origin ?? "待确认"} ·{" "}
+                      {result.trip_sheet.adults
+                        ? `${result.trip_sheet.adults}人`
+                        : "人数待确认"}{" "}
+                      · 预算 {result.trip_sheet.budget ?? "待确认"}
+                    </p>
+                  </div>
+                </div>
+              )}
               {plan ? (
-                <DailyItinerary plan={plan} />
+                <DailyItinerary plan={plan} dates={result.trip_sheet?.dates} />
               ) : (
                 <p className="muted">本次尚未形成活动安排，请查看具体缺口。</p>
               )}
@@ -237,6 +255,33 @@ export function ResultPanel({ task }: { task: Task | null }) {
                   计算，也不代表已满足预算。
                 </p>
               </div>
+              {result.trip_sheet && (
+                <div className="notice">
+                  <div>
+                    <strong>出发前清单</strong>
+                    <ul>
+                      {result.trip_sheet.todo.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {result.sources.some(
+                (source) => source.provider === "openstreetmap",
+              ) && (
+                <p className="section-note">
+                  地图数据 ©{" "}
+                  <a
+                    href="https://www.openstreetmap.org/copyright"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    OpenStreetMap contributors
+                  </a>
+                  ，ODbL。
+                </p>
+              )}
             </>
           )}
           {tab === "sources" && (
@@ -255,7 +300,16 @@ export function ResultPanel({ task }: { task: Task | null }) {
                         : "路线估算"}
                     <span>未独立核实</span>
                   </div>
-                  {!result.is_demo && safeLink(item.url) ? (
+                  {item.provider === "openstreetmap" &&
+                  /^(node|way)\/[0-9]+$/.test(item.poi_id ?? "") ? (
+                    <a
+                      href={`https://www.openstreetmap.org/${item.poi_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {item.name}
+                    </a>
+                  ) : !result.is_demo && safeLink(item.url) ? (
                     <a
                       href={safeLink(item.url)}
                       target="_blank"
@@ -271,9 +325,11 @@ export function ResultPanel({ task }: { task: Task | null }) {
                   <small>
                     {result.is_demo
                       ? "合成提供者"
-                      : item.provider === "amap"
-                        ? "高德"
-                        : "DeepSeek 搜索"}
+                      : item.provider === "openstreetmap"
+                        ? "OpenStreetMap"
+                        : item.provider === "amap"
+                          ? "高德"
+                          : "DeepSeek 搜索"}
                     {item.retrieved_at &&
                       ` · 获取于 ${new Date(item.retrieved_at).toLocaleString("zh-CN")}`}
                   </small>

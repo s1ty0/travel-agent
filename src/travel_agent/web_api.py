@@ -21,6 +21,7 @@ from .durable_tasks import DurableTasks
 from .evidence_store import save_provenance
 from .idea import extract_idea
 from .models import Contract
+from .open_map import CITY_ALIASES, FILES, OpenMap
 from .plan_render import render_markdown
 from .planner import BaselineRunner
 from .planner_cli import save_run
@@ -32,6 +33,7 @@ from .service_budget import PriceCard, ServiceBudget
 from .source_models import SourceBatch
 from .sources import amap_key_from_env, fingerprint
 from .trial import Admission, check_key, trial_enabled
+from .trip_sheet import trip_sheet
 
 router = APIRouter(prefix="/v1/web", tags=["web"])
 
@@ -59,6 +61,8 @@ def web_owner(request: Request):
         raise HTTPException(503, "web_not_configured")
     if not secrets.compare_digest(request.headers.get("x-travel-bridge", ""), token):
         raise HTTPException(403, "web_bridge_required")
+    if cloud_live_only() and (demo_enabled() or not live_enabled()):
+        raise HTTPException(503, "cloud_live_required")
     if vercel_worker() and not database_url():
         raise HTTPException(503, "cloud_database_required")
     owner = request.headers.get("x-travel-session", "")
@@ -69,6 +73,14 @@ def web_owner(request: Request):
 
 def live_enabled():
     return os.environ.get("TRAVEL_WEB_LIVE") == "1"
+
+
+def cloud_live_only():
+    return os.environ.get("VERCEL") == "1"
+
+
+def open_map_enabled():
+    return cloud_live_only() or os.environ.get("TRAVEL_MAP_PROVIDER") == "openstreetmap"
 
 
 def vercel_worker():
@@ -107,15 +119,21 @@ def run_plan(
         max_replans=data.max_replans,
     )
     prices = PriceCard(amap_free_quota_only=os.environ.get("AMAP_FREE_QUOTA_ONLY") == "1")
-    use_product = demo or os.environ.get("TRAVEL_PLANNER_ENGINE", "source_first") != "baseline"
+    use_open_map = not demo and open_map_enabled()
+    use_product = (
+        demo
+        or use_open_map
+        or os.environ.get("TRAVEL_PLANNER_ENGINE", "source_first") != "baseline"
+    )
     runner = (
         demo_runner(data.research_mode or "single_agent")
         if demo
         else ProductPlanner(
             settings,
-            amap_key_from_env(),
+            None if use_open_map else amap_key_from_env(),
             prices,
             mode=data.research_mode or os.environ.get("TRAVEL_RESEARCH_MODE", "single_agent"),
+            map_factory=OpenMap if use_open_map else None,
         )
         if use_product
         else BaselineRunner(settings, amap_key_from_env(), limits=limits, prices=prices)
@@ -211,6 +229,12 @@ def run_plan(
             update={"constraints": planning.constraints.model_copy(update={"max_walk_minutes": 90})}
         )
         assumptions.append("每日步行上限暂按90分钟，市内交通目前仅有步行估算，可修改。")
+    if use_open_map:
+        city = CITY_ALIASES.get(planning.city)
+        if city and planning.trip.destination == planning.city:
+            trip = planning.trip.model_copy(update={"destination": city})
+            planning = planning.model_copy(update={"city": city, "trip": trip})
+        assumptions.append("地点和步行估算来自 OpenStreetMap 城区数据；交通按步行路网估算。")
     observer = (lambda stage, steps: progress(stage, steps, ledger.summary())) if progress else None
     result = (
         refine_product(
@@ -245,6 +269,8 @@ def run_plan(
             audit_saved = True
     except (OSError, sqlite3.Error):
         audit_saved = False
+    if result.get("plan") and not demo:
+        result["trip_sheet"] = trip_sheet(planning, result["plan"])
     output = {
         "city": planning.city,
         "planning": planning.model_dump(mode="json"),
@@ -360,6 +386,7 @@ def web_config(owner: Annotated[str, Depends(web_owner)]):
         "trial_policy": policy,
         "has_user_key": policy and tasks.store.has_key(owner),
         "serverless_worker": vercel_worker(),
+        "supported_cities": list(FILES) if open_map_enabled() and not demo_enabled() else None,
         "planning_enabled": (live_enabled() or demo_enabled())
         and not (live_enabled() and demo_enabled()),
         "service_cap_minor": 500,
@@ -402,7 +429,10 @@ def create_task(data: WebPlanRequest, request: Request, owner: Annotated[str, De
 
 @router.get("/tasks/{task_id}")
 def get_task(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
-    return tasks.get(owner, str(task_id))
+    task = tasks.get(owner, str(task_id))
+    if cloud_live_only() and (task.get("output") or {}).get("is_demo"):
+        raise HTTPException(404, "task_not_found")
+    return task
 
 
 @router.post("/tasks/{task_id}/work")
@@ -417,12 +447,16 @@ def work_task(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
 
 @router.get("/tasks")
 def task_history(owner: Annotated[str, Depends(web_owner)]):
-    return {"tasks": tasks.history(owner)}
+    entries = tasks.history(owner)
+    return {"tasks": [e for e in entries if not cloud_live_only() or not e.get("is_demo")]}
 
 
 @router.get("/tasks/{task_id}/versions")
 def task_versions(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
-    return {"tasks": tasks.history(owner, str(task_id))}
+    if cloud_live_only():
+        get_task(task_id, owner)
+    entries = tasks.history(owner, str(task_id))
+    return {"tasks": [e for e in entries if not cloud_live_only() or not e.get("is_demo")]}
 
 
 @router.post("/tasks/{task_id}/cancel")

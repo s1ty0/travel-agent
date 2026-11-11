@@ -43,6 +43,15 @@ export type Result = {
   source_calls: number;
   replans: number;
   elapsed_ms: number;
+  trip_sheet?: {
+    city: string;
+    origin?: string;
+    dates: Record<string, string>;
+    days?: number;
+    adults?: number;
+    budget?: string;
+    todo: string[];
+  };
   service_cost: {
     estimated_upper: number;
     cap: number;
@@ -72,6 +81,7 @@ export type Result = {
       url?: string;
       snippet?: string;
       evidence_kind?: string;
+      poi_id?: string;
     }[];
   }[];
 };
@@ -125,6 +135,11 @@ export type Task = {
   };
 };
 export const errorText: Record<string, string> = {
+  credential_capacity: "当前会话密钥保存数量已满，请稍后再试。",
+  price_card_expired: "服务价格需要重新核对，当前暂停模型和搜索调用。",
+  open_map_city_unavailable:
+    "公开版目前覆盖杭州西湖东岸和苏州古城区。请选择杭州或苏州生成。",
+  cloud_live_required: "真实规划暂不可用。服务恢复后可重新提交。",
   cloud_database_required: "在线规划数据库尚未配置，请稍后再试。",
   own_deepseek_key_required:
     "试用额度已用完或当前网络无法试用。请填写自己的 DeepSeek API Key 后提交。",

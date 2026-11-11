@@ -14,6 +14,7 @@ from .trial import SESSION_KEY_TTL, seal_key
 
 ACTIVE = ("queued", "running", "cancelling")
 TTL = 7 * 86400
+MAX_ACTIVE_CREDENTIALS = 200
 
 
 SCHEMA = """
@@ -123,7 +124,10 @@ class TaskStore:
                 ).fetchone()
                 if not base:
                     raise HTTPException(404, "task_not_found")
-                if not base["output_json"] or not json.loads(base["output_json"]).get("planning"):
+                base_output = json.loads(base["output_json"]) if base["output_json"] else {}
+                if admission is not None and base_output.get("is_demo"):
+                    raise HTTPException(404, "task_not_found")
+                if not base_output.get("planning"):
                     raise HTTPException(409, "base_conditions_unavailable")
             active = db.execute(
                 "SELECT owner FROM tasks WHERE state IN ('queued','running','cancelling')"
@@ -296,10 +300,22 @@ class TaskStore:
         owner = self.owner_key(owner)
         encrypted = seal_key(owner, key)
         with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            now = self.clock()
+            db.execute("DELETE FROM session_credentials WHERE expires<?", (now,))
+            already_saved = db.execute(
+                "SELECT 1 FROM session_credentials WHERE owner=?", (owner,)
+            ).fetchone()
+            if (
+                not already_saved
+                and db.execute("SELECT COUNT(*) FROM session_credentials").fetchone()[0]
+                >= MAX_ACTIVE_CREDENTIALS
+            ):
+                raise HTTPException(429, "credential_capacity")
             db.execute(
                 "INSERT INTO session_credentials VALUES(?,?,?) ON CONFLICT(owner) DO UPDATE "
                 "SET encrypted_key=excluded.encrypted_key,expires=excluded.expires",
-                (owner, encrypted, self.clock() + SESSION_KEY_TTL),
+                (owner, encrypted, now + SESSION_KEY_TTL),
             )
 
     def remove_key(self, owner):

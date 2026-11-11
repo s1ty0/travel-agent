@@ -9,9 +9,9 @@ from .deepseek import ProviderError
 
 @dataclass(frozen=True)
 class PriceCard:
-    # Official CNY peak/miss prices checked on this date; never assume cache discounts.
+    # Initial CNY peak/miss prices were rechecked on 2026-11-11; no cache discounts.
     checked_on: date = date(2026, 11, 8)
-    valid_until: date = date(2026, 11, 15)
+    valid_until: date = date(2026, 12, 11)
     model: str = "deepseek-flash"
     input_micro_cny_per_token: int = 2
     output_micro_cny_per_token: int = 8

@@ -21,7 +21,7 @@ def save_provenance(batch: SourceBatch, path: Path) -> None:
         if isinstance(hit, SearchHit):
             item["locator"] = hit.url
         elif isinstance(hit, PlaceHit):
-            item["locator"] = "amap:poi:" + hit.poi_id
+            item["locator"] = batch.provider + ":poi:" + hit.poi_id
         else:
             item["locator"] = hit.source_id
         sources.append(item)

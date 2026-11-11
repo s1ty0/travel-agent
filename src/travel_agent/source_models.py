@@ -22,9 +22,11 @@ class SearchQuery(Contract):
 class Coordinate(Contract):
     longitude: Annotated[float, Field(strict=True, ge=-180, le=180, allow_inf_nan=False)]
     latitude: Annotated[float, Field(strict=True, ge=-90, le=90, allow_inf_nan=False)]
-    system: Literal["GCJ-02"] = "GCJ-02"
+    system: Literal["GCJ-02", "WGS84"] = "GCJ-02"
 
     def as_amap(self):
+        if self.system != "GCJ-02":
+            raise ValueError("amap_requires_gcj02")
         return f"{self.longitude:.6f},{self.latitude:.6f}"
 
 
@@ -90,7 +92,7 @@ class WalkingPath(Contract):
 class SourceBatch(Contract):
     schema_version: Literal[1] = 1
     run_id: str
-    provider: Literal["deepseek_search", "amap"]
+    provider: Literal["deepseek_search", "amap", "openstreetmap"]
     operation: Literal["search", "places", "nearby", "walking"]
     retrieved_at: datetime
     query_sha256: str

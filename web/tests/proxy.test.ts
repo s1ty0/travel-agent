@@ -161,6 +161,31 @@ test("Vercel requires fixed HTTPS origins and sets a secure session cookie", asy
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
+test("hosted requests refuse a synthetic backend and never return a saved demo", async () => {
+  vi.stubEnv("VERCEL", "1");
+  vi.stubEnv("TRAVEL_WEB_TOKEN", token);
+  vi.stubEnv("TRAVEL_PUBLIC_ORIGIN", "https://travel.example");
+  vi.stubEnv("TRAVEL_UPSTREAM_URL", "https://api.travel.example");
+  const host = { headers: { host: "travel.example" } };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ demo_mode: true, live_enabled: false })),
+  );
+  const config = await GET(request("config", host), context("config"));
+  expect(config.status).toBe(503);
+  expect(await config.json()).toEqual({ error: "cloud_live_required" });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ output: { is_demo: true, secret_fixture: "demo text" } }),
+    ),
+  );
+  const path = "tasks/11111111-1111-4111-8111-111111111111";
+  const result = await GET(request(path, host), context(path));
+  expect(result.status).toBe(404);
+  expect(await result.text()).not.toContain("demo text");
+});
+
 test.each([
   "",
   "http://api.travel.example",

@@ -25,12 +25,14 @@ class RunContext:
         today,
         model_transport=None,
         source_transport=None,
+        map_source=None,
         cancel=None,
         progress=None,
         start=None,
     ):
         self.settings, self.key, self.prices, self.ledger = settings, key, prices, ledger
         self.model_transport, self.source_transport = model_transport, source_transport
+        self.map_source = map_source
         self.cancel, self.progress = cancel, progress
         self.start = start if start is not None else monotonic()
         self.lock = RLock()
@@ -143,7 +145,11 @@ class RunContext:
 
     def source(self, query):
         timeout = self.guard()
-        if not isinstance(query, SearchQuery) and self.source_transport is None:
+        if (
+            not isinstance(query, SearchQuery)
+            and self.source_transport is None
+            and self.map_source is None
+        ):
             # Conservative account-wide in-process pacing; never retry a rejected call.
             with self.amap_lock:
                 while monotonic() < RunContext.amap_next_at:
@@ -157,7 +163,11 @@ class RunContext:
                 return self.cache[signature]
             if self.source_calls >= 20:
                 raise ProviderError("source_call_limit")
-            if not isinstance(query, SearchQuery) and not self.prices.amap_free_quota_only:
+            if (
+                not isinstance(query, SearchQuery)
+                and self.map_source is None
+                and not self.prices.amap_free_quota_only
+            ):
                 raise ProviderError("amap_price_or_quota_unknown")
             event_id = f"source_{self.source_calls + 1}"
             cost = self.prices.search_micro_cny_per_call if isinstance(query, SearchQuery) else 0
@@ -177,6 +187,8 @@ class RunContext:
                     replace(self.settings, timeout_seconds=timeout),
                     transport=self.source_transport,
                 )
+            elif self.map_source is not None:
+                batch = self.map_source(query)
             elif isinstance(query, WalkingQuery):
                 batch = walking_route(
                     query, self.key, transport=self.source_transport, timeout=timeout

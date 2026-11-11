@@ -17,6 +17,22 @@ def _time(value):
 def render_markdown(result):
     lines = ["# 旅行规划草案", "", "建议时间未经营业、预约或票务核验。当前没有执行购买。", ""]
     plan = result.get("plan")
+    sheet = result.get("trip_sheet")
+    if sheet:
+        lines[0] = f"# {_escape(sheet['city'])} · 旅行行程单（待核实）"
+        dates = list(sheet["dates"].values())
+        interval = " 至 ".join(dict.fromkeys([dates[0], dates[-1]])) if dates else "待确认"
+        lines.extend(
+            [
+                "## 出行信息",
+                "",
+                "- 日期：" + interval,
+                f"- 出发地：{_escape(sheet['origin'] or '待确认')}",
+                f"- 人数：{sheet['adults'] or '待确认'}",
+                f"- 旅行预算：{_escape(sheet['budget'] or '待确认')}",
+                "",
+            ]
+        )
     if result.get("status") == "stopped" and plan:
         lines.append(
             "修正过程已停止；下方保留最近一次未通过方案。原因："
@@ -40,19 +56,27 @@ def render_markdown(result):
         if plan.get("day_schedule"):
             lines.extend(["", "## 每日时间框架（建议时段，具体内容待确认）", ""])
             for frame in plan["day_schedule"]:
-                lines.append(f"### 第 {frame['day']} 天")
+                date_label = (sheet or {}).get("dates", {}).get(str(frame["day"]))
+                lines.append(
+                    f"### 第 {frame['day']} 天" + (f" · {date_label}" if date_label else "")
+                )
                 for block in frame["blocks"]:
-                    title = (
-                        plan["activities"][block["activity_index"]]["place_name"]
+                    activity = (
+                        plan["activities"][block["activity_index"]]
                         if block["kind"] == "activity"
-                        else block["title"]
+                        else None
                     )
+                    title = activity["place_name"] if activity else block["title"]
                     lines.append(
                         f"- {_time(block['start_minute'])}–{_time(block['end_minute'])} "
                         + _escape(title)
                     )
                     if block.get("note"):
                         lines.append("  " + _escape(block["note"]))
+                    if sheet and activity:
+                        lines.append(
+                            "  地址：" + _escape(activity.get("address") or "待核实") + "。"
+                        )
                 if frame["missing_meals"]:
                     lines.append("待调整用餐时段：" + "、".join(frame["missing_meals"]))
             lines.extend(["", "## 已查询地点与依据", ""])
@@ -104,6 +128,9 @@ def render_markdown(result):
                 lines.append("- 校验冲突：" + _escape(check["rule"]) + "。")
             elif check["rule"] == "transfer_duration" and check["status"] == "unknown":
                 lines.append("- 相邻地点交通时间尚未查询，不保证可以按时抵达。")
+        if sheet:
+            lines.extend(["", "## 出发前清单", ""])
+            lines.extend("- [ ] " + _escape(item) for item in sheet["todo"])
         if plan["missing_fields"]:
             lines.append("- 需求还有待补充或确认的条件，当前保留为草案。")
         lines.extend(["", "## 来源", ""])
@@ -121,6 +148,7 @@ def render_markdown(result):
                 )
         seen = set()
         for batch in result["sources"]:
+            is_osm = batch["provider"] == "openstreetmap"
             for hit in batch["hits"]:
                 if hit["source_id"] in seen:
                     continue
@@ -129,12 +157,18 @@ def render_markdown(result):
                     link = quote(hit["url"], safe=":/?&=#%+@;,")
                     lines.append(f"- [{_escape(hit['title'])}]({link})（搜索摘要，未核实原文）。")
                 elif hit["evidence_kind"] == "provider_place_record":
-                    lines.append(
-                        f"- 高德地点：{_escape(hit['name'])}；ID：{_escape(hit['poi_id'])}。"
-                    )
+                    name = _escape(hit["name"])
+                    id_ = hit["poi_id"]
+                    if is_osm and re.fullmatch(r"(?:node|way)/[0-9]+", id_):
+                        lines.append(
+                            f"- OpenStreetMap 地点：[{name}](https://www.openstreetmap.org/{id_})。"
+                        )
+                    else:
+                        lines.append(f"- 高德地点：{name}；ID：{_escape(id_)}。")
                 else:
                     lines.append(
-                        f"- 高德步行估算：{hit['distance_meters']} 米、"
+                        ("- OpenStreetMap 路网步行估算：" if is_osm else "- 高德步行估算：")
+                        + f"{hit['distance_meters']} 米、"
                         f"{hit['duration_seconds']} 秒。"
                     )
             lines.append(
@@ -143,6 +177,10 @@ def render_markdown(result):
                 + "；状态："
                 + _escape(batch["status"])
                 + "。"
+            )
+        if any(batch["provider"] == "openstreetmap" for batch in result["sources"]):
+            lines.append(
+                "地图数据 © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)，ODbL。"
             )
     cost = result["service_cost"]
     if result.get("page_reads"):

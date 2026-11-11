@@ -350,7 +350,7 @@ def test_unknown_map_price_and_missing_map_key_do_not_call_model():
 
 
 def test_expired_price_or_tiny_budget_blocks_before_payment():
-    runner, counts = make_runner(today=date(2026, 11, 16))
+    runner, counts = make_runner(today=date(2026, 12, 12))
     assert runner.run(data())["issue"] == "price_card_expired"
     assert counts["model"] == 0
     runner, counts = make_runner(limits=PlannerLimits(service_cap_minor=1))

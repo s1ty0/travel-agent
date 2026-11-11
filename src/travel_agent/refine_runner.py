@@ -24,6 +24,7 @@ def refine_product(runner, data, base_output, edit, ledger, *, cancel=None, prog
         today=runner.today,
         model_transport=runner.model_transport,
         source_transport=runner.source_transport,
+        map_source=runner.map_factory(data.city) if runner.map_factory else None,
         cancel=cancel,
         progress=progress,
         start=started,
@@ -176,5 +177,9 @@ def refine_product(runner, data, base_output, edit, ledger, *, cancel=None, prog
         "created_at": datetime.now(UTC).isoformat(),
         "price_checked_on": runner.prices.checked_on.isoformat(),
         "price_valid_until": runner.prices.valid_until.isoformat(),
-        "amap_cost_basis": "user_confirmed_free_quota_no_paid_fallback",
+        "amap_cost_basis": (
+            "not_used_openstreetmap_snapshot"
+            if runner.map_factory
+            else "user_confirmed_free_quota_no_paid_fallback"
+        ),
     }

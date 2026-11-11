@@ -25,16 +25,18 @@ function httpsOrigin(value: string | undefined): URL | undefined {
 }
 
 function bridgeSettings(host: string) {
-  const publicOrigin =
-    process.env.TRAVEL_PUBLIC_ORIGIN ??
-    (process.env.VERCEL === "1" && process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : undefined);
+  const deployment =
+    process.env.VERCEL === "1" && process.env.VERCEL_URL
+      ? httpsOrigin(`https://${process.env.VERCEL_URL}`)
+      : undefined;
+  const publicOrigin = process.env.TRAVEL_PUBLIC_ORIGIN ?? deployment?.origin;
   const upstreamOrigin = process.env.TRAVEL_UPSTREAM_URL;
   if (process.env.VERCEL === "1" || publicOrigin || upstreamOrigin) {
-    const site = httpsOrigin(publicOrigin);
+    const canonical = httpsOrigin(publicOrigin);
     const api = httpsOrigin(upstreamOrigin);
-    if (!site || !api || site.origin === api.origin) return undefined;
+    if (!canonical || !api || canonical.origin === api.origin) return undefined;
+    const site = deployment?.host === host ? deployment : canonical;
+    if (site.origin === api.origin) return undefined;
     return {
       allowed: site.host === host,
       origin: site.origin,
@@ -199,6 +201,22 @@ async function forward(
       headers,
     });
     const data = await upstream.json();
+    if (bridge.secure && upstream.ok) {
+      if (path === "config" && (data.demo_mode || !data.live_enabled)) {
+        return NextResponse.json(
+          { error: "cloud_live_required" },
+          { status: 503 },
+        );
+      }
+      if (data.output?.is_demo || data.output?.result?.is_demo) {
+        return NextResponse.json({ error: "task_not_found" }, { status: 404 });
+      }
+      if (Array.isArray(data.tasks)) {
+        data.tasks = data.tasks.filter(
+          (entry: { is_demo?: boolean }) => !entry.is_demo,
+        );
+      }
+    }
     if (
       bridge.secure &&
       process.env.TRAVEL_VERCEL_WORKER === "1" &&
