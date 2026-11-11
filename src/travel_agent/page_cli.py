@@ -43,7 +43,7 @@ def main():
         if len(raw) > 8192:
             raise ValueError("input_too_long")
         query = PageReadInput.model_validate_json(raw)
-        ledger = ServiceBudget(int(os.environ.get("SERVICE_BUDGET_MINOR", "200")))
+        ledger = ServiceBudget(int(os.environ.get("SERVICE_BUDGET_MINOR", "500")))
         outcome = read_page(query, DeepSeekSettings.from_env(), ledger=ledger)
     except ProviderError as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)

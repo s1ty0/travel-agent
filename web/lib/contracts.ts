@@ -90,7 +90,12 @@ export type Task = {
         start_date?: string | null;
         raw_text?: string;
       };
-      constraints?: { max_sightseeing_places?: number | null };
+      constraints?: {
+        max_sightseeing_places?: number | null;
+        max_walk_minutes?: number | null;
+        required_places?: string[];
+        excluded_places?: string[];
+      };
     } | null;
     result: Result;
     markdown: string;
@@ -141,6 +146,10 @@ export const ruleText: Record<string, string> = {
   reference_quote: "资料引用",
   activity_time_window: "每日起止时间",
   daily_schedule_details: "用餐与自由时段待细化",
+  daily_walking_limit: "每日步行上限",
+  required_place: "必去地点",
+  required_activity_fit: "必去活动时间不足",
+  activity_not_fitted: "部分可选活动未能排入",
 };
 
 export function checkDescription(check: Check) {

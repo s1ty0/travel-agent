@@ -190,7 +190,7 @@ def test_preflight_cost_price_and_policy_failures_make_no_request():
     def forbidden(request):
         pytest.fail("preflight failure must not make a request")
 
-    full = ServiceBudget()
+    full = ServiceBudget(200)
     full.reserve("other-work", 2000000)
     cases = (
         ({"ledger": full}, "service_budget_exhausted"),
@@ -323,7 +323,7 @@ def test_cli_invalid_budget_and_provider_settings_are_safe(monkeypatch, capsys):
 
     monkeypatch.setattr("sys.argv", ["page", "--live"])
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps({"url": URL})))
-    monkeypatch.setenv("SERVICE_BUDGET_MINOR", "201")
+    monkeypatch.setenv("SERVICE_BUDGET_MINOR", "501")
     assert main() == 2
     assert "invalid_service_budget" in capsys.readouterr().err
     monkeypatch.setenv("SERVICE_BUDGET_MINOR", "200")

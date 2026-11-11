@@ -13,6 +13,9 @@ from .references import ReferenceInput, digest
 
 class PlanningConstraints(Contract):
     max_sightseeing_places: Annotated[int, Field(strict=True, ge=1, le=9)] | None = None
+    max_walk_minutes: Annotated[int, Field(strict=True, ge=0, le=480)] | None = None
+    excluded_places: Annotated[tuple[Text, ...], Field(max_length=10)] = ()
+    required_places: Annotated[tuple[Text, ...], Field(max_length=6)] = ()
 
 
 class DayWindow(Contract):
@@ -71,7 +74,7 @@ class PlanningInput(Contract):
 
 class PlannerLimits(Contract):
     allow_rule_draft: bool = False
-    service_cap_minor: Annotated[int, Field(strict=True, ge=1, le=200)] = 200
+    service_cap_minor: Annotated[int, Field(strict=True, ge=1, le=500)] = 500
     max_model_calls: Annotated[int, Field(strict=True, ge=1, le=4)] = 4
     max_source_calls: Annotated[int, Field(strict=True, ge=1, le=6)] = 5
     max_elapsed_seconds: Annotated[int, Field(strict=True, ge=1, le=120)] = 90
@@ -124,3 +127,7 @@ class Activity(Contract):
 
 class Proposal(Contract):
     activities: Annotated[tuple[Activity, ...], Field(min_length=1, max_length=9)]
+
+
+class ProductProposal(Contract):
+    activities: Annotated[tuple[Activity, ...], Field(min_length=1, max_length=18)]

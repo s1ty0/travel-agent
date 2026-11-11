@@ -12,6 +12,11 @@ from travel_agent.service_budget import PriceCard, ServiceBudget
 from travel_agent.web_api import WebPlanRequest, run_plan
 
 
+@pytest.fixture(autouse=True)
+def legacy_baseline_contract(monkeypatch):
+    monkeypatch.setenv("TRAVEL_PLANNER_ENGINE", "baseline")
+
+
 def response(fields=None, usage=None):
     fields = fields or {
         "destination": "南京",

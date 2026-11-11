@@ -23,6 +23,7 @@ from .plan_render import render_markdown
 from .planner import BaselineRunner
 from .planner_cli import save_run
 from .planning_models import DayWindow, PlannerLimits, PlanningInput
+from .product_planner import ProductPlanner
 from .service_budget import PriceCard, ServiceBudget
 from .source_models import SourceBatch
 from .sources import amap_key_from_env, fingerprint
@@ -62,20 +63,25 @@ def live_enabled():
     return os.environ.get("TRAVEL_WEB_LIVE") == "1"
 
 
-def run_plan(data: WebPlanRequest, *, base_planning=None):
+def run_plan(data: WebPlanRequest, *, base_planning=None, cancel=None, progress=None):
     start = monotonic()
     settings = DeepSeekSettings.from_env()
     limits = PlannerLimits(
         allow_rule_draft=True,
-        service_cap_minor=min(int(os.environ.get("SERVICE_BUDGET_MINOR", "200")), 200),
+        service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "500")),
         max_replans=data.max_replans,
     )
     prices = PriceCard(amap_free_quota_only=os.environ.get("AMAP_FREE_QUOTA_ONLY") == "1")
-    runner = BaselineRunner(
-        settings,
-        amap_key_from_env(),
-        limits=limits,
-        prices=prices,
+    use_product = os.environ.get("TRAVEL_PLANNER_ENGINE", "source_first") != "baseline"
+    runner = (
+        ProductPlanner(
+            settings,
+            amap_key_from_env(),
+            prices,
+            mode=os.environ.get("TRAVEL_RESEARCH_MODE", "single_agent"),
+        )
+        if use_product
+        else BaselineRunner(settings, amap_key_from_env(), limits=limits, prices=prices)
     )
     ledger = ServiceBudget(limits.service_cap_minor)
     planning, assumptions, events = data.planning, [], []
@@ -125,12 +131,18 @@ def run_plan(data: WebPlanRequest, *, base_planning=None):
     if planning.day_window is None:
         planning = planning.model_copy(update={"day_window": DayWindow()})
         assumptions.append("每日时间框架暂按09:00至20:00，可在条件栏调整。")
+    if use_product and planning.constraints.max_walk_minutes is None:
+        planning = planning.model_copy(
+            update={"constraints": planning.constraints.model_copy(update={"max_walk_minutes": 90})}
+        )
+        assumptions.append("每日步行上限暂按90分钟，市内交通目前仅有步行估算，可修改。")
     result = runner.run(
         planning,
         ledger=ledger,
         initial_model_calls=initial_calls,
         initial_events=events,
         started_at=start,
+        **({"cancel": cancel, "progress": progress} if use_product else {}),
     )
     # Existing minimal audit excludes the itinerary, raw request, quotes and prompt.
     audit_path = Path("runtime/web-audit.sqlite3")
@@ -244,9 +256,10 @@ tasks = WebTasks()
 def web_config(owner: Annotated[str, Depends(web_owner)]):
     return {
         "live_enabled": live_enabled(),
-        "service_cap_minor": 200,
+        "service_cap_minor": 500,
         "production_ready": False,
         "storage": "ephemeral_30_minutes",
+        "engine": os.environ.get("TRAVEL_PLANNER_ENGINE", "source_first"),
     }
 
 

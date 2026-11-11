@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date
+from threading import RLock
 
 from .deepseek import ProviderError
 
@@ -43,17 +44,22 @@ class PriceCard:
 
 
 class ServiceBudget:
-    """Single-run, sequential ledger. Unknown charges retain reservation and stop continuation."""
+    """Shared run ledger. Atomic reservations include all concurrent agent branches."""
 
-    def __init__(self, cap_minor: int = 200):
-        if type(cap_minor) is not int or not 1 <= cap_minor <= 200:
+    def __init__(self, cap_minor: int = 500):
+        if type(cap_minor) is not int or not 1 <= cap_minor <= 500:
             raise ProviderError("invalid_service_budget")
         self.cap_micro = cap_minor * 10000
         self.estimated_micro = 0
         self.reservations = {}
         self.uncertain = False
+        self.lock = RLock()
 
     def reserve(self, event_id: str, micro_cny: int):
+        with self.lock:
+            self._reserve(event_id, micro_cny)
+
+    def _reserve(self, event_id: str, micro_cny: int):
         if self.uncertain:
             raise ProviderError("service_cost_unknown")
         if type(micro_cny) is not int or micro_cny < 0 or event_id in self.reservations:
@@ -63,6 +69,10 @@ class ServiceBudget:
         self.reservations[event_id] = micro_cny
 
     def settle(self, event_id: str, upper_estimate_micro: int):
+        with self.lock:
+            self._settle(event_id, upper_estimate_micro)
+
+    def _settle(self, event_id: str, upper_estimate_micro: int):
         reserved = self.reservations[event_id]
         if type(upper_estimate_micro) is not int or not 0 <= upper_estimate_micro <= reserved:
             self.uncertain = True
@@ -71,9 +81,14 @@ class ServiceBudget:
         del self.reservations[event_id]
 
     def unknown(self):
-        self.uncertain = True
+        with self.lock:
+            self.uncertain = True
 
     def summary(self):
+        with self.lock:
+            return self._summary()
+
+    def _summary(self):
         return {
             "currency": "CNY",
             "unit": "micro_cny",

@@ -190,7 +190,7 @@ def test_planning_reads_authorized_page_and_cites_exact_body_under_one_budget():
     assert result["source_calls"] == counts["source"] == 3
     assert counts["fetch"] == 1
     assert result["service_cost"]["estimated_upper"] == 11200
-    assert result["service_cost"]["cap"] == 2000000
+    assert result["service_cost"]["cap"] == 5000000
     assert result["service_cost"]["reserved_unsettled"] == 0
     assert result["plan"]["travel_budget"]["status"] == "uncertain"
     tool = next(t for t in counts["payloads"][0]["tools"] if t["function"]["name"] == "read_page")

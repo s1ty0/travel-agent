@@ -60,6 +60,7 @@ export default function Planner() {
   const [dayEnd, setDayEnd] = useState("20:00");
   const [origin, setOrigin] = useState("");
   const [sights, setSights] = useState<number | "auto">("auto");
+  const [walkMinutes, setWalkMinutes] = useState<number | "">("");
   const [allowRepair, setAllowRepair] = useState(true);
   const [enabled, setEnabled] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -80,6 +81,7 @@ export default function Planner() {
     setBudget(planning.trip.budget ?? "");
     setDays(planning.trip.days ?? 1);
     setSights(planning.constraints?.max_sightseeing_places ?? "auto");
+    setWalkMinutes(planning.constraints?.max_walk_minutes ?? "");
     setAdults(planning.trip.adults ?? "");
     setOrigin(planning.trip.origin ?? "");
     setStartDate(planning.trip.start_date ?? "");
@@ -172,6 +174,7 @@ export default function Planner() {
     setDayStart("09:00");
     setDayEnd("20:00");
     setSights("auto");
+    setWalkMinutes("");
     setAllowRepair(true);
     requestId.current = null;
     sessionStorage.removeItem("travel_task");
@@ -213,8 +216,13 @@ export default function Planner() {
                 ...(startDate ? { start_date: startDate } : {}),
                 ...(origin.trim() ? { origin: origin.trim() } : {}),
               },
-              constraints:
-                sights === "auto" ? {} : { max_sightseeing_places: sights },
+              constraints: {
+                ...(baseTask?.output?.planning?.constraints ?? {}),
+                max_sightseeing_places: sights === "auto" ? null : sights,
+                ...(walkMinutes === ""
+                  ? {}
+                  : { max_walk_minutes: walkMinutes }),
+              },
             },
           }),
     };
@@ -478,6 +486,23 @@ export default function Planner() {
                       </label>
                     </div>
                     <label>
+                      每日步行上限（分钟） <small>留空暂按90分钟</small>
+                      <input
+                        type="number"
+                        min="0"
+                        max="480"
+                        value={walkMinutes}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setWalkMinutes(
+                            event.target.value === ""
+                              ? ""
+                              : Number(event.target.value),
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
                       出发地 <small>可留空</small>
                       <input
                         name="origin"
@@ -548,7 +573,7 @@ export default function Planner() {
                     )}
                   </button>
                   <p className="cost-note">
-                    真实调用 · 每次服务上限 ¥2
+                    真实调用 · 每次服务上限 ¥5
                     <br />
                     此为模型与查询成本，与旅行预算分开。
                   </p>

@@ -139,7 +139,7 @@ def test_single_agent_grounded_draft_and_unknown_budget():
     assert result["plan"]["activities"][0]["place_name"] == "测试地点甲"
     assert result["plan"]["travel_budget"]["status"] == "uncertain"
     assert result["plan"]["travel_budget"]["high_minor"] is None
-    assert result["service_cost"]["cap"] == 2000000
+    assert result["service_cost"]["cap"] == 5000000
     assert result["service_cost"]["estimated_upper"] == 6800
     assert result["service_cost"]["actual_billed"] is None
     assert result["service_cost"]["reserved_unsettled"] == 0
@@ -450,7 +450,7 @@ def test_ledger_reservations_rounding_and_uncertainty():
     ledger.unknown()
     with pytest.raises(ProviderError, match="service_cost_unknown"):
         ledger.reserve("next", 1)
-    for cap in (0, 201, True):
+    for cap in (0, 501, True):
         with pytest.raises(ProviderError):
             ServiceBudget(cap)
     ledger = ServiceBudget(1)

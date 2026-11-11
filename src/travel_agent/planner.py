@@ -119,6 +119,7 @@ def validate_proposal(
     *,
     today=None,
     constraints=None,
+    daily_activity_limit=3,
 ):
     """Check traceability/intervals deterministically, without certifying source truth."""
     records = {hit.source_id: hit for batch in batches for hit in batch.hits}
@@ -164,7 +165,7 @@ def validate_proposal(
             }
         )
     for day in range(1, days + 1):
-        if sum(a.day == day for a in activities) > 3:
+        if sum(a.day == day for a in activities) > daily_activity_limit:
             checks.append({"rule": "daily_activity_limit", "status": "fail"})
     for activity in activities:
         place = records.get(activity.place_source_id)

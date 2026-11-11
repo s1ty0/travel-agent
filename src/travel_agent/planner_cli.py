@@ -67,7 +67,7 @@ def main():
     for stream in (sys.stdin, sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="受控单Agent草案；每次服务预算最高2元，不执行购买")
+    parser = argparse.ArgumentParser(description="受控单Agent草案；每次服务预算最高5元，不执行购买")
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
     parser.add_argument("--max-replans", type=int, choices=(0, 1), default=0)
@@ -81,7 +81,7 @@ def main():
             raise ValueError("input_too_long")
         data = PlanningInput.model_validate_json(raw)
         limits = PlannerLimits(
-            service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "200")),
+            service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "500")),
             max_replans=args.max_replans,
         )
         result = BaselineRunner(

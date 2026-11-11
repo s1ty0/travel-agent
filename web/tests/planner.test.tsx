@@ -49,7 +49,7 @@ test("sending an idea creates a first draft before condition refinement", async 
     expect(submitted?.planning).toMatchObject({
       city: "南京",
       trip: { budget: "3000以内" },
-      constraints: {},
+      constraints: { max_sightseeing_places: null },
       day_window: { start_minute: 540, end_minute: 1200 },
     }),
   );

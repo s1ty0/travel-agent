@@ -225,8 +225,20 @@ def _amap(path, params, key, transport, timeout=30):
             "10004": "rate_limited",
             "10007": "permission_denied",
             "10009": "permission_denied",
+            "10019": "rate_limited",
+            "10020": "rate_limited",
+            "10021": "rate_limited",
+            "10044": "amap_free_quota_exhausted",
+            "40000": "amap_free_quota_exhausted",
         }.get(body.get("infocode"), "amap_rejected")
-        raise ProviderError(code)
+        error = ProviderError(code)
+        raw_code = body.get("infocode")
+        error.provider_code = (
+            raw_code
+            if isinstance(raw_code, str) and re.fullmatch(r"\d{5}", raw_code)
+            else "unknown"
+        )
+        raise error
     return body
 
 
