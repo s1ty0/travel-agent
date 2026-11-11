@@ -1,6 +1,6 @@
 # 架构与工程边界
 
-当前交付包括[公网正式版](https://travel-agent-web-tau.vercel.app)和本机模式。公网由 Next.js 与 FastAPI 两个 Vercel 项目组成，任务保存在 Neon PostgreSQL，响应发出后由 Next.js `after` 触发受保护工作入口。数据库事务保护任务认领与额度。真实地点与步行路网来自已打包的 OpenStreetMap 城区快照，模型与搜索使用 DeepSeek。本机保留 SQLite 和独立进程路径。多 Agent 采用自建分支汇合。
+当前交付包括[公网正式版](https://travel-agent-web-tau.vercel.app)和本机模式。公网由 Next.js 与 FastAPI 两个 Vercel 项目组成，任务保存在 Neon PostgreSQL，响应发出后由 Next.js `after` 触发受保护工作入口。数据库事务保护任务认领与额度。真实地点、附近餐饮和步行路线使用高德实时查询，模型与搜索使用 DeepSeek。OSM 城区快照保留为显式选择的适配器，不强制用于公网。本机保留 SQLite 和独立进程路径。多 Agent 采用自建分支汇合。
 
 ```mermaid
 flowchart TD

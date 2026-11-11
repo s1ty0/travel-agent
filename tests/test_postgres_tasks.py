@@ -59,8 +59,8 @@ def test_postgres_independent_instances_atomically_admit_claim_and_read(dsn, mon
 
 def test_postgres_network_trial_is_shared_across_anonymous_sessions(dsn):
     store = PostgresTaskStore(dsn)
-    admission = Admission("1" * 64, 10)
-    for _ in range(3):
+    admission = Admission("1" * 64, 20)
+    for _ in range(10):
         request = WebPlanRequest(request_id=uuid4(), idea="杭州一天")
         task, fresh = store.create(OWNER, request, admission=admission)
         assert fresh and store.claim("worker", task["task_id"])["admitted"]

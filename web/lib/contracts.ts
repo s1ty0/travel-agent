@@ -138,7 +138,7 @@ export const errorText: Record<string, string> = {
   credential_capacity: "当前会话密钥保存数量已满，请稍后再试。",
   price_card_expired: "服务价格需要重新核对，当前暂停模型和搜索调用。",
   open_map_city_unavailable:
-    "公开版目前覆盖杭州西湖东岸和苏州古城区。请选择杭州或苏州生成。",
+    "当前离线地图没有该目的地资料，请切换实时地图后重新查询。",
   cloud_live_required: "真实规划暂不可用。服务恢复后可重新提交。",
   cloud_database_required: "在线规划数据库尚未配置，请稍后再试。",
   own_deepseek_key_required:

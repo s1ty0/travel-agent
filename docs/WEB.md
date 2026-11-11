@@ -1,12 +1,12 @@
 # 网页工作台
 
-当前为Next.js/React/TypeScript与FastAPI/Pydantic组成的只读规划网站。[公网正式版](https://travel-agent-web-tau.vercel.app)覆盖杭州西湖东岸与苏州古城，使用 DeepSeek 与真实 OpenStreetMap 城区快照，Neon PostgreSQL 保存私有任务。先从自然语言生成首稿，再通过短句或条件栏完善。以下启动命令面向本机；公网验收与限制见[发布记录](devlogs/2026-11-11-public-live-release.md)。
+当前为Next.js/React/TypeScript与FastAPI/Pydantic组成的只读规划网站。[公网正式版](https://travel-agent-web-tau.vercel.app)使用 DeepSeek 与高德实时地图查询，不设两城白名单，Neon PostgreSQL 保存私有任务。先从自然语言生成首稿，再通过短句或条件栏完善。以下启动命令面向本机；公网验收与限制见[发布记录](devlogs/2026-11-11-public-live-release.md)。
 
 ## 运行与交互
 
 无密钥演示运行`powershell -ExecutionPolicy Bypass -File scripts/demo.ps1`。已有构建可加`-SkipBuild`。明确真实调用使用`powershell -ExecutionPolicy Bypass -File scripts/start-web.ps1 -Live -Production`，本机`.env`配置见[演示说明](DEMO.md)。省略`-Live`默认合成演示，不读取根目录`.env`；省略`-Production`使用开发网页服务。
 
-页眉显示当前模式。本机真实规划通过 DeepSeek 搜索与高德地图生成已选城市1～3天的草案；公网地图来自 OSM 快照，周边城市发现待接入。合成演示支持南京、杭州、上海1～3天。默认使用各自的任务数据库，切换到真实规划时会忽略此前打开的合成结果。缺预算、人数或日期可先出草案，天数缺失暂按1天。每日09:00～20:00、步行上限90分钟可修改。
+页眉显示当前模式。本机真实规划通过 DeepSeek 搜索与高德地图生成已选城市1～3天的草案；公网同样使用高德实时查询，周边城市发现待接入。合成演示支持南京、杭州、上海1～3天。默认使用各自的任务数据库，切换到真实规划时会忽略此前打开的合成结果。缺预算、人数或日期可先出草案，天数缺失暂按1天。每日09:00～20:00、步行上限90分钟可修改。
 
 来源先行引擎取得搜索、城市地点与餐饮候选，模型选择ID和天数，程序安排附近餐厅、步行与缓冲。支持标准联合、并行查询和专精并行，默认标准；最多8次模型、20次来源、180秒，共享5元估算账本。免费地图额度故障停止，不重试或扩容。旧基线可设`TRAVEL_PLANNER_ENGINE=baseline`，4次模型/5次来源，可选一次受限修正；演示始终使用来源先行引擎。
 

@@ -80,7 +80,7 @@ def cloud_live_only():
 
 
 def open_map_enabled():
-    return cloud_live_only() or os.environ.get("TRAVEL_MAP_PROVIDER") == "openstreetmap"
+    return os.environ.get("TRAVEL_MAP_PROVIDER") == "openstreetmap"
 
 
 def vercel_worker():

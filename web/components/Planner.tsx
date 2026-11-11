@@ -457,7 +457,7 @@ export default function Planner() {
                     />
                     <p className="small-note">
                       保存后本会话优先使用你的
-                      Key。服务端加密保存，最长7天，可随时删除。跳过可试用最多3次，受网络和全站额度限制。
+                      Key。服务端加密保存，最长7天，可随时删除。跳过可试用最多10次，受网络和全站额度限制。
                     </p>
                     <div className="history-actions">
                       <button

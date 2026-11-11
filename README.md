@@ -1,10 +1,10 @@
 # 行迹 · travel-agent
 
-[打开公网正式版](https://travel-agent-web-tau.vercel.app)。当前覆盖杭州西湖东岸和苏州古城区，使用 DeepSeek 实时模型与搜索、OpenStreetMap 的真实地点和步行路网快照。可输入日期、人数、预算，生成带午晚餐、转场和出发前清单的行程单并导出。首次打开可填写自己的 DeepSeek Key 或先试用，网页和后台均已部署到 Vercel，历史保存在独立的 Neon PostgreSQL。
+[打开公网正式版](https://travel-agent-web-tau.vercel.app)。使用 DeepSeek 实时模型与搜索、高德地点、附近餐饮和步行路线查询，不设两城白名单。可输入日期、人数、预算，生成带午晚餐、转场和出发前清单的行程单并导出。首次打开可填写自己的 DeepSeek Key 或先试用，网页和后台均已部署到 Vercel，历史保存在独立的 Neon PostgreSQL。
 
 从一句旅行想法生成带来源、可修改的1～3天行程草案。提供响应式网页、景点与餐饮候选、确定性时间和交通检查、私有历史版本及三种AI研究策略。
 
-当前交付包含公网真实规划和本机离线测试模式。本机可使用原有 DeepSeek 与高德配置；公网使用具有公开许可的 OpenStreetMap 数据并展示署名。合成数据仅用于本机或 CI。营业、预约、票务、酒店和旅行总费用缺失时保留待核实。[发布验证](docs/devlogs/2026-11-11-public-live-release.md)
+当前交付包含公网真实规划和本机离线测试模式。本机可使用原有 DeepSeek 与高德配置；公网恢复高德真实查询；OSM 城区快照保留为显式选择的适配器与测试资料，不强制用于公网。合成数据仅用于本机或 CI。营业、预约、票务、酒店和旅行总费用缺失时保留待核实。[发布验证](docs/devlogs/2026-11-11-public-live-release.md)
 
 公网真实流程截图见[发布验证](docs/devlogs/2026-11-11-public-live-release.md)，历史合成界面截图仍保留在本机演示文档中。
 

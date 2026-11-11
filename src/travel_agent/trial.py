@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException
 
-TRIAL_LIMIT = 3
+TRIAL_LIMIT = 10
 NETWORK_WINDOW = 86400
 KEY_TTL = 300
 SESSION_KEY_TTL = 7 * 86400

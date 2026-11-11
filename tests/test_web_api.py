@@ -39,6 +39,40 @@ def test_web_configuration_never_exposes_credentials(web, monkeypatch):
     assert response.json()["production_ready"] is False
 
 
+@pytest.mark.parametrize("city", ["南京", "上海", "成都"])
+def test_hosted_real_planning_uses_amap_without_snapshot_city_whitelist(monkeypatch, city):
+    from travel_agent.product_planner import ProductPlanner
+    from travel_agent.synthetic import SyntheticProviders
+    from travel_agent.web_api import run_plan
+
+    fixture = SyntheticProviders()
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("TRAVEL_WEB_LIVE", "1")
+    monkeypatch.setenv("TRAVEL_DEMO_MODE", "0")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-synthetic-model-key")
+    monkeypatch.setenv("AMAP_WEB_API_KEY", "synthetic-map-key")
+    monkeypatch.setenv("AMAP_FREE_QUOTA_ONLY", "1")
+    monkeypatch.delenv("TRAVEL_MAP_PROVIDER", raising=False)
+    monkeypatch.setattr(
+        "travel_agent.web_api.ProductPlanner",
+        lambda *args, **kwargs: ProductPlanner(
+            *args,
+            **kwargs,
+            model_transport=fixture.model_transport,
+            source_transport=fixture.source_transport,
+        ),
+    )
+    planning = data().model_copy(update={"city": city})
+    planning = planning.model_copy(
+        update={"trip": planning.trip.model_copy(update={"destination": city})}
+    )
+    output = run_plan(WebPlanRequest(request_id=uuid4(), planning=planning))
+    result = output["result"]
+    assert result["status"] == "draft" and result["plan"]["activities"]
+    assert "amap" in {batch["provider"] for batch in result["sources"]}
+    assert not result.get("is_demo")
+
+
 @pytest.mark.parametrize("kind", ["unconfigured", "bad_token", "missing_owner", "bad_owner"])
 def test_web_bridge_requires_server_token_and_session(web, monkeypatch, kind):
     client, _ = web

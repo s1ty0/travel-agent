@@ -30,22 +30,22 @@ def accept(store, owner, admission, request=None):
 def test_trial_cap_survives_reload_deletion_new_session_and_new_network(tmp_path):
     clock = [1000.0]
     store = TaskStore(tmp_path / "tasks.db", clock=lambda: clock[0])
-    trial = Admission(NET, 4)
+    trial = Admission(NET, 11)
     request = data()
     first = accept(store, OWNER, trial, request)
     assert accept(store, OWNER, trial, request)["task_id"] == first["task_id"]
     store.delete(OWNER, first["task_id"])
-    accept(store, OWNER, trial)
-    accept(store, OWNER, trial)
+    for _ in range(9):
+        accept(store, OWNER, trial)
     store = TaskStore(store.path, clock=lambda: clock[0])
     with pytest.raises(HTTPException, match="own_deepseek_key_required"):
         accept(store, OTHER, trial)
     with pytest.raises(HTTPException, match="own_deepseek_key_required"):
-        accept(store, OWNER, Admission(OTHER_NET, 4))
+        accept(store, OWNER, Admission(OTHER_NET, 11))
     clock[0] += 86401
     accept(store, OTHER, trial)
     with pytest.raises(HTTPException, match="own_deepseek_key_required"):
-        accept(store, OTHER, Admission(OTHER_NET, 4))
+        accept(store, OTHER, Admission(OTHER_NET, 11))
 
 
 def test_session_key_is_reused_and_never_charges_trial(tmp_path, monkeypatch):
