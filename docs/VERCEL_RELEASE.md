@@ -1,25 +1,27 @@
 # Vercel 公开发布检查
 
+[公网正式版](https://travel-agent-web-tau.vercel.app)已切换到通过真实供应商验收的 Production 候选。用户访问无需 Vercel 登录。API 自身保留桥接与部署保护，浏览器通过同源代理访问。生产与预览使用不同 Neon 数据库和桥接凭据。
+
 公网首发采用 DeepSeek 搜索与 OpenStreetMap 的真实城区快照，覆盖杭州西湖东岸和苏州古城。高德公开使用许可未确认，高德保留在已有本机模式。旧合成 Preview 已下线，云端拒绝演示配置和历史。测试仍可本地使用合成数据。[此前云端验证记录](devlogs/2026-11-11-vercel-preview.md)
 
 首发按用户确认跳过小红书。匿名会话首次进入可保存自己的 DeepSeek Key 或先试用；不引入账号。
 
-| 检查项 | 当前状态 | 发布前要完成 |
+| 检查项 | 当前状态 | 后续验证与限制 |
 | --- | --- | --- |
 | 网页到 API | 本机继续用回环地址。云端要求显式配置 HTTPS 网页与 API 地址，保留同源、路径白名单和桥接鉴权，会话 Cookie 使用 Secure。 | 在 Vercel Preview 和真实后台验证连接与重定向行为。 |
 | 任务与历史 | 本机 SQLite；云端 API 和工作入口使用共享 PostgreSQL。创建和认领使用数据库事务和事务级锁。 | 用 Vercel 前后端 Preview 验收持久任务、服务中断和跨实例幂等。已启动任务失联后保留中断状态。 |
-| 访问和费用 | 不设账号。匿名会话最多3个管理员额度；同网络滚动24小时最多3个，全站试用总量默认0。自己的 Key 可加密保存7天并复用。 | 预发布使用 Vercel Deployment Protection，验收可信网络标识、费用与供应商配额告警和关停。 |
+| 访问和费用 | 不设账号。匿名会话最多3个管理员额度；同网络滚动24小时最多3个，代码默认全站试用总量0，生产显式配置6个。自己的 Key 可加密保存7天并复用。 | 预发布使用 Vercel Deployment Protection，验收可信网络标识、费用与供应商配额告警和关停。 |
 | 地点与路线许可 | 公网版打包 OpenStreetMap 真实城区快照，网页与导出署名，派生数据库按 ODbL 随仓库发布。 | 高德如恢复用于公网，另核实展示、保存和导出范围。 |
 | 发布验收 | 本机真实冒烟和离线 CI 已有记录。 | 在候选部署环境执行[正式测试门禁](TESTING.md)，重点实测中国大陆目标网络、真实来源、权限隔离、并发和限额、进程重启、备份恢复与回滚。 |
 
-两个 Vercel 项目已建立。Next.js 项目的代码根目录是 `web`，FastAPI 项目使用仓库根目录 `app.py`。后者只挂载已有桥接鉴权的规划接口，`/health` 只返回健康状态。数据库从 Vercel Marketplace 接入 Neon Preview，持久历史与工作入口共享。供应商密钥放在后端项目。[Vercel FastAPI 文档](https://vercel.com/docs/frameworks/backend/fastapi) · [仓库根目录设置](https://vercel.com/docs/monorepos) · [Vercel 的 SQLite 说明](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel)
+两个 Vercel 项目已建立。Next.js 项目的代码根目录是 `web`，FastAPI 项目使用仓库根目录 `app.py`。后者只挂载已有桥接鉴权的规划接口，`/health` 只返回健康状态。数据库从 Vercel Marketplace 接入独立 Neon Preview 与 Production，持久历史与工作入口共享对应环境数据库。供应商密钥放在后端项目。[Vercel FastAPI 文档](https://vercel.com/docs/frameworks/backend/fastapi) · [仓库根目录设置](https://vercel.com/docs/monorepos) · [Vercel 的 SQLite 说明](https://vercel.com/kb/guide/is-sqlite-supported-in-vercel)
 
 ## 预发布配置
 
 - Vercel 前端 Preview 配置 `TRAVEL_UPSTREAM_URL`、`TRAVEL_WEB_TOKEN`、`TRAVEL_VERCEL_WORKER=1`，需要绕过 API Preview 自身访问保护时在前端服务端配置 `TRAVEL_UPSTREAM_VERCEL_BYPASS`。访问默认生成的部署域名时由 `VERCEL_URL` 提供网页来源地址。使用固定域名时，设置 `TRAVEL_PUBLIC_ORIGIN` 为实际访问的 HTTPS Origin。地址不带路径、查询或用户名。
 - 云端 API 连接该环境的 Neon，提供 `DATABASE_URL`。可用 `TRAVEL_DATABASE_URL` 显式指定。后端使用同环境的桥接密钥。真实模式需要独立的 `TRAVEL_TASK_KEY_ENCRYPTION`，并设置 `TRAVEL_DEMO_MODE=0`、`TRAVEL_WEB_LIVE=1`。Vercel 后端拒绝合成模式。
 - 网页接单后用 Next.js `after` 在响应发出后触发 FastAPI 工作入口，轮询发现任务仍在排队时也可触发。后台检查桥接凭据和任务归属，数据库确保最多一次认领。已启动任务失联后不自动再付费。浏览器离开后，如果触发动作在工作入口认领前丢失，回来轮询可以恢复排队任务。云端任务结果保存来源与运行事件，单独本地 SQLite 审计不启用。[Next.js after 文档](https://nextjs.org/docs/app/api-reference/functions/after)
-- 真实后端需设置 `TRAVEL_DEMO_MODE=0`、`TRAVEL_TRIAL_ENABLED=1`，按发布决定启用 `TRAVEL_WEB_LIVE=1`。`TRAVEL_TRIAL_GLOBAL_CAP` 是整个数据库生命周期内的管理员试用任务总量。`0` 只允许自带 Key；提高上限会允许额外管理员消耗。用户提交的 Key 供该会话的 DeepSeek 模型和搜索使用，高德仍使用后台配额。按同一请求去重；成功入队即占一格，取消或失败不返还。
+- 真实后端需设置 `TRAVEL_DEMO_MODE=0`、`TRAVEL_TRIAL_ENABLED=1`，按发布决定启用 `TRAVEL_WEB_LIVE=1`。`TRAVEL_TRIAL_GLOBAL_CAP` 是整个数据库生命周期内的管理员试用任务总量。`0` 只允许自带 Key；提高上限会允许额外管理员消耗。用户提交的 Key 供该会话的 DeepSeek 模型和搜索使用，公网地图读取打包的 OSM 数据；本机高德仍使用后台配额。按同一请求去重；成功入队即占一格，取消或失败不返还。
 - 代理仅信任 Vercel 注入的网络地址，以桥接凭据做 HMAC，后端只存摘要。无可信地址时仍可使用自带 Key。IPv4 按地址、IPv6 按 `/64`，共享网络会共用额度。网络变化不能绕过全站总量。
 - 用户 Key 通过单独接口提交，只保存密文和过期时间，页面只读到是否已保存。入队给 worker 的加密副本最多保留5分钟，认领时清除。用户移除 Key 会停止新任务使用，已接受任务需用取消操作停止后续调用。部署方需禁止请求头和明文凭据进入日志。
 
