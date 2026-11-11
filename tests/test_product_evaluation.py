@@ -16,16 +16,19 @@ spec = importlib.util.spec_from_file_location(
 evaluation = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(evaluation)
 DEVELOPMENT, DIGEST = evaluation.load_cases("development")
+ACCEPTANCE, _ = evaluation.load_cases("acceptance")
 
 
-@pytest.mark.parametrize("case", DEVELOPMENT, ids=lambda case: case["id"])
-def test_frozen_product_development_contracts(case):
+@pytest.mark.parametrize("mode", evaluation.MODES)
+@pytest.mark.parametrize("case", DEVELOPMENT + ACCEPTANCE, ids=lambda case: case["id"])
+def test_frozen_product_contracts(case, mode):
     synthetic = SyntheticProviders(flags=case.get("source_flags"))
     runner = ProductPlanner(
         DeepSeekSettings("synthetic"),
         "synthetic",
         PriceCard(amap_free_quota_only=True),
         today=evaluation.date(2026, 11, 11),
+        mode=mode,
         model_transport=synthetic.model_transport,
         source_transport=synthetic.source_transport,
     )

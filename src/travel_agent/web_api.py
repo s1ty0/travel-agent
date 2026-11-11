@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field, model_validator
 
 from .deepseek import DeepSeekSettings, ProviderError
+from .demo import demo_enabled, demo_intake, demo_runner, mark_demo
 from .durable_tasks import DurableTasks
 from .evidence_store import save_provenance
 from .idea import extract_idea
@@ -71,16 +72,23 @@ def run_plan(
     data: WebPlanRequest, *, base_planning=None, base_output=None, cancel=None, progress=None
 ):
     start = monotonic()
-    settings = DeepSeekSettings.from_env()
+    demo = demo_enabled()
+    if demo and live_enabled():
+        raise ProviderError("demo_live_mode_conflict")
+    if base_output and bool(base_output.get("is_demo")) != demo:
+        raise ProviderError("base_execution_mode_mismatch")
+    settings = DeepSeekSettings("synthetic-demo-only") if demo else DeepSeekSettings.from_env()
     limits = PlannerLimits(
         allow_rule_draft=True,
         service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "500")),
         max_replans=data.max_replans,
     )
     prices = PriceCard(amap_free_quota_only=os.environ.get("AMAP_FREE_QUOTA_ONLY") == "1")
-    use_product = os.environ.get("TRAVEL_PLANNER_ENGINE", "source_first") != "baseline"
+    use_product = demo or os.environ.get("TRAVEL_PLANNER_ENGINE", "source_first") != "baseline"
     runner = (
-        ProductPlanner(
+        demo_runner(data.research_mode or "single_agent")
+        if demo
+        else ProductPlanner(
             settings,
             amap_key_from_env(),
             prices,
@@ -89,6 +97,7 @@ def run_plan(
         if use_product
         else BaselineRunner(settings, amap_key_from_env(), limits=limits, prices=prices)
     )
+    prices = runner.prices
     ledger = ServiceBudget(limits.service_cap_minor)
     planning, assumptions, events = data.planning, [], []
     initial_calls, edit = 0, None
@@ -112,6 +121,8 @@ def run_plan(
                 edit = parse_local_edit(data.idea, base_planning, base_output)
             if edit:
                 planning, assumptions = edit.planning, [edit.note]
+            elif demo:
+                planning, assumptions = demo_intake(data.idea, base_planning)
             else:
                 initial_calls = 1
                 planning, assumptions = extract_idea(
@@ -148,7 +159,7 @@ def run_plan(
                 }
                 else initial_calls
             )
-            return {
+            failed = {
                 "city": "旅行初稿",
                 "planning": None,
                 "assumptions": [],
@@ -168,6 +179,7 @@ def run_plan(
                     "elapsed_ms": int((monotonic() - start) * 1000),
                 },
             }
+            return mark_demo(failed) if demo else failed
     if planning.day_window is None:
         planning = planning.model_copy(update={"day_window": DayWindow()})
         assumptions.append("每日时间框架暂按09:00至20:00，可在条件栏调整。")
@@ -208,7 +220,7 @@ def run_plan(
         audit_saved = True
     except (OSError, sqlite3.Error):
         audit_saved = False
-    return {
+    output = {
         "city": planning.city,
         "planning": planning.model_dump(mode="json"),
         "assumptions": assumptions,
@@ -216,6 +228,7 @@ def run_plan(
         "markdown": render_markdown(result),
         "audit_saved": audit_saved,
     }
+    return mark_demo(output) if demo else output
 
 
 @dataclass
@@ -311,6 +324,9 @@ tasks = DurableTasks(run_plan, embedded=os.environ.get("TRAVEL_TASK_WORKER_EXTER
 def web_config(owner: Annotated[str, Depends(web_owner)]):
     return {
         "live_enabled": live_enabled(),
+        "demo_mode": demo_enabled(),
+        "planning_enabled": (live_enabled() or demo_enabled())
+        and not (live_enabled() and demo_enabled()),
         "service_cap_minor": 500,
         "production_ready": False,
         "storage": "private_session_7_days",
@@ -320,7 +336,9 @@ def web_config(owner: Annotated[str, Depends(web_owner)]):
 
 @router.post("/tasks", status_code=202)
 def create_task(data: WebPlanRequest, owner: Annotated[str, Depends(web_owner)]):
-    if not live_enabled():
+    if live_enabled() and demo_enabled():
+        raise HTTPException(503, "demo_live_mode_conflict")
+    if not (live_enabled() or demo_enabled()):
         raise HTTPException(503, "live_planning_disabled")
     if data.planning and (data.planning.page_urls or data.planning.references):
         raise HTTPException(422, "web_reference_import_not_enabled")

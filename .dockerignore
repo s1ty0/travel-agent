@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+**/node_modules
+**/.next
+**/__pycache__
+.venv
+.cache
+runtime
+artifacts
+web/test-results
+web/playwright-report
+.coverage
+.pytest_cache
+.ruff_cache
+dist
+build

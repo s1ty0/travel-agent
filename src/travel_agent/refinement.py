@@ -109,13 +109,13 @@ def parse_local_edit(text, base, base_output):
         elif re.fullmatch(r"(?:换掉|去掉|删掉|不要去).+", command):
             name = re.sub(r"^(?:换掉|去掉|删掉|不要去)", "", command).strip()
             matches = {
-                a["place_name"]
+                (a["place_name"], a["place_source_id"])
                 for a in activities
                 if name in a["place_name"] and (day is None or a["day"] == day)
             }
             if len(matches) != 1:
                 raise ProviderError("ambiguous_place_change")
-            name = next(iter(matches))
+            name, source_id = next(iter(matches))
             planning = planning.model_copy(
                 update={
                     "constraints": planning.constraints.model_copy(
@@ -132,7 +132,10 @@ def parse_local_edit(text, base, base_output):
             if day:
                 override = override.model_copy(
                     update={
-                        "excluded_places": tuple(dict.fromkeys((*override.excluded_places, name)))
+                        "excluded_places": tuple(dict.fromkeys((*override.excluded_places, name))),
+                        "excluded_source_ids": tuple(
+                            dict.fromkeys((*override.excluded_source_ids, source_id))
+                        ),
                     }
                 )
             else:
@@ -142,7 +145,12 @@ def parse_local_edit(text, base, base_output):
                             update={
                                 "excluded_places": tuple(
                                     dict.fromkeys((*planning.constraints.excluded_places, name))
-                                )
+                                ),
+                                "excluded_source_ids": tuple(
+                                    dict.fromkeys(
+                                        (*planning.constraints.excluded_source_ids, source_id)
+                                    )
+                                ),
                             }
                         )
                     }

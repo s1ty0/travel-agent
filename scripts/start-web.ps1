@@ -1,5 +1,6 @@
-param([switch]$Live, [switch]$Production)
+param([switch]$Live, [switch]$Demo, [switch]$Production)
 $ErrorActionPreference = 'Stop'
+if ($Live -and $Demo) { throw 'Choose Live or Demo, not both.' }
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $webRoot = Join-Path $projectRoot 'web'
 $nextBin = Join-Path $webRoot 'node_modules/next/dist/bin/next'
@@ -12,6 +13,7 @@ New-Item -ItemType Directory -Path $privateDir -Force | Out-Null
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $previousToken = $env:TRAVEL_WEB_TOKEN
 $previousLive = $env:TRAVEL_WEB_LIVE
+$previousDemo = $env:TRAVEL_DEMO_MODE
 $previousExternal = $env:TRAVEL_TASK_WORKER_EXTERNAL
 $backend = $null
 try {
@@ -21,10 +23,11 @@ try {
     $random.Dispose()
     $env:TRAVEL_WEB_TOKEN = [BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant()
     $env:TRAVEL_WEB_LIVE = if ($Live) { '1' } else { '0' }
+    $env:TRAVEL_DEMO_MODE = if ($Live) { '0' } else { '1' }
     $env:TRAVEL_TASK_WORKER_EXTERNAL = '1'
     $envFile = Join-Path $projectRoot '.env'
-    $backendArgs = @('run','--no-sync')
-    if (Test-Path -LiteralPath $envFile) { $backendArgs += @('--env-file', ('"' + $envFile.Replace('\', '/') + '"')) }
+    $backendArgs = @('run','--project', ('"' + $projectRoot.Replace('\', '/') + '"'), '--no-sync')
+    if ($Live -and (Test-Path -LiteralPath $envFile)) { $backendArgs += @('--env-file', ('"' + $envFile.Replace('\', '/') + '"')) }
     $workerArgs = $backendArgs + @('python','-m','travel_agent.worker')
     $backendArgs += @('uvicorn','travel_agent.api:app','--host','127.0.0.1','--port','8000')
     $backend = Start-Process -FilePath (Get-Command uv).Source -ArgumentList $backendArgs -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $privateDir "$stamp-backend.log") -RedirectStandardError (Join-Path $privateDir "$stamp-backend-error.log")
@@ -36,7 +39,7 @@ try {
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
         try {
             $config = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/config' -TimeoutSec 2
-            $ready = ($config.live_enabled -eq [bool]$Live)
+            $ready = ($config.live_enabled -eq [bool]$Live -and $config.demo_mode -eq (!$Live))
             if ($ready) { break }
         } catch { }
         Start-Sleep -Milliseconds 500
@@ -44,8 +47,10 @@ try {
     if (!$ready) { throw 'Web service did not become ready. Check artifacts/web logs; no credentials were printed.' }
     Write-Output 'Website: http://127.0.0.1:3000'
     Write-Output ('Live planning: ' + [bool]$Live + '; loopback only, no public deployment.')
+    if (!$Live) { Write-Output 'Synthetic demo: no real model, map or search requests.' }
 } finally {
     $env:TRAVEL_WEB_TOKEN = $previousToken
     $env:TRAVEL_WEB_LIVE = $previousLive
+    $env:TRAVEL_DEMO_MODE = $previousDemo
     $env:TRAVEL_TASK_WORKER_EXTERNAL = $previousExternal
 }

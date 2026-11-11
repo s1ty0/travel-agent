@@ -34,6 +34,7 @@ export type Activity = {
   claims?: { predicate: string; value: boolean }[];
 };
 export type Result = {
+  is_demo?: boolean;
   run_id: string;
   status: string;
   research_mode?: string;
@@ -83,6 +84,7 @@ export type Task = {
   root_id?: string;
   error: string | null;
   output: null | {
+    is_demo?: boolean;
     city: string;
     assumptions?: string[];
     planning?: {
@@ -93,6 +95,7 @@ export type Task = {
         window?: { start_minute: number; end_minute: number } | null;
         max_walk_minutes?: number | null;
         excluded_places?: string[];
+        excluded_source_ids?: string[];
       }[];
       trip: {
         budget?: string | null;
@@ -107,6 +110,7 @@ export type Task = {
         max_walk_minutes?: number | null;
         required_places?: string[];
         excluded_places?: string[];
+        excluded_source_ids?: string[];
       };
     } | null;
     result: Result;
@@ -121,6 +125,10 @@ export type Task = {
   };
 };
 export const errorText: Record<string, string> = {
+  demo_select_nanjing_hangzhou_or_shanghai:
+    "合成演示支持南京、杭州、上海1～3天，请选一个城市。",
+  demo_live_mode_conflict: "演示与真实模式配置冲突，请只启用一个。",
+  base_execution_mode_mismatch: "演示与真实规划的依据不能混用，请新建旅行。",
   backend_unavailable: "规划服务暂未连接，请检查后端是否启动。",
   web_not_configured: "网页服务尚未配置，请使用项目启动脚本。",
   live_planning_disabled: "真实规划尚未开启，请使用启动脚本的 -Live 参数。",
@@ -165,6 +173,7 @@ export function safeLink(value?: string) {
   }
 }
 export const ruleText: Record<string, string> = {
+  excluded_place: "安排含已明确排除的地点",
   sightseeing_place_limit: "景点数量",
   time_overlap: "时间重叠",
   transfer_duration: "交通衔接",

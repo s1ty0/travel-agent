@@ -122,6 +122,7 @@ def validate_proposal(
     daily_activity_limit=3,
 ):
     """Check traceability/intervals deterministically, without certifying source truth."""
+    constraints = constraints or {}
     records = {hit.source_id: hit for batch in batches for hit in batch.hits}
     page_records = {page.metadata()["source_id"]: page for page in pages}
     evidence = (
@@ -172,6 +173,16 @@ def validate_proposal(
         if not isinstance(place, PlaceHit):
             checks.append({"rule": "place_reference", "status": "fail"})
             continue
+        excluded_names = (
+            *constraints.get("excluded_places", ()),
+            *constraints.get("day_excluded_places", {}).get(str(activity.day), ()),
+        )
+        excluded_ids = (
+            *constraints.get("excluded_source_ids", ()),
+            *constraints.get("day_excluded_source_ids", {}).get(str(activity.day), ()),
+        )
+        if place.source_id in excluded_ids or any(name in place.name for name in excluded_names):
+            checks.append({"rule": "excluded_place", "status": "fail", "day": activity.day})
         for citation in activity.citations:
             source = records.get(citation.source_id)
             if isinstance(source, SearchHit):

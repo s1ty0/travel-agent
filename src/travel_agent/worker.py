@@ -4,6 +4,7 @@ import argparse
 import signal
 from threading import Event
 
+from .demo import demo_enabled
 from .web_api import live_enabled, tasks
 
 
@@ -17,7 +18,7 @@ def main():
     try:
         while not stopped.is_set():
             tasks.store.maintenance()
-            if not live_enabled():
+            if not (live_enabled() or demo_enabled()):
                 if args.once:
                     break
                 stopped.wait(0.5)

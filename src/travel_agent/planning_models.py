@@ -15,6 +15,7 @@ class PlanningConstraints(Contract):
     max_sightseeing_places: Annotated[int, Field(strict=True, ge=1, le=9)] | None = None
     max_walk_minutes: Annotated[int, Field(strict=True, ge=0, le=480)] | None = None
     excluded_places: Annotated[tuple[Text, ...], Field(max_length=10)] = ()
+    excluded_source_ids: Annotated[tuple[Text, ...], Field(max_length=10)] = ()
     required_places: Annotated[tuple[Text, ...], Field(max_length=6)] = ()
 
 
@@ -34,6 +35,7 @@ class DayOverride(Contract):
     window: DayWindow | None = None
     max_walk_minutes: Annotated[int, Field(strict=True, ge=0, le=480)] | None = None
     excluded_places: Annotated[tuple[Text, ...], Field(max_length=10)] = ()
+    excluded_source_ids: Annotated[tuple[Text, ...], Field(max_length=10)] = ()
 
 
 class PlanningInput(Contract):
@@ -80,6 +82,28 @@ class PlanningInput(Contract):
             "explicit_limit": explicit,
             "literal_single_sight_preference": literal_single,
             "other_preferences": "not_fully_validated",
+            **(
+                {
+                    "excluded_places": self.constraints.excluded_places,
+                    "excluded_source_ids": self.constraints.excluded_source_ids,
+                }
+                if self.constraints.excluded_places or self.constraints.excluded_source_ids
+                else {}
+            ),
+            **(
+                {
+                    "day_excluded_places": {
+                        str(item.day): item.excluded_places for item in self.day_overrides
+                    },
+                    "day_excluded_source_ids": {
+                        str(item.day): item.excluded_source_ids for item in self.day_overrides
+                    },
+                }
+                if any(
+                    item.excluded_places or item.excluded_source_ids for item in self.day_overrides
+                )
+                else {}
+            ),
             **({"day_window": self.day_window.model_dump()} if self.day_window else {}),
             **(
                 {

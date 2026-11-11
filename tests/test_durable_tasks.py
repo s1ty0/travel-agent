@@ -17,6 +17,21 @@ def request(**kwargs):
     return WebPlanRequest(request_id=uuid4(), idea="南京一天", **kwargs)
 
 
+def test_heartbeat_extends_only_current_worker_lease(tmp_path):
+    now = [100.0]
+    store = TaskStore(tmp_path / "heartbeat.db", clock=lambda: now[0])
+    task, _ = store.create(OWNER, request())
+    store.claim("worker", task["task_id"])
+    now[0] += 50
+    assert not store.heartbeat(task["task_id"], "other-worker")
+    assert store.heartbeat(task["task_id"], "worker")
+    now[0] += 50
+    assert store.get(OWNER, task["task_id"])["state"] == "running"
+    now[0] += 11
+    assert store.get(OWNER, task["task_id"])["state"] == "interrupted"
+    assert not store.heartbeat(task["task_id"], "worker")
+
+
 def output(data=None, **kwargs):
     return {
         "city": "南京",

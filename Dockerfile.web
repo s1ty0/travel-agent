@@ -1,0 +1,8 @@
+FROM node:24-bookworm-slim
+WORKDIR /app
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --registry=https://registry.npmjs.org
+COPY web ./
+RUN npm run build
+ENV NODE_ENV=production
+CMD ["npm", "run", "start", "--", "--hostname", "0.0.0.0"]

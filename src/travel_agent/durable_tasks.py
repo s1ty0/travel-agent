@@ -3,7 +3,7 @@
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
+from threading import Event, Lock, Thread
 from uuid import uuid4
 
 from .task_store import TaskStore
@@ -38,6 +38,15 @@ class DurableTasks:
         if row is None:
             return False
         task_id = row["id"]
+        stopped = Event()
+
+        def heartbeat():
+            while not stopped.wait(10):
+                if not self.store.heartbeat(task_id, worker):
+                    break
+
+        lease_thread = Thread(target=heartbeat, daemon=True, name="travel-task-lease")
+        lease_thread.start()
         try:
             data = WebPlanRequest.model_validate_json(row["input_json"])
             base_output = None
@@ -68,6 +77,9 @@ class DurableTasks:
             self.store.finish(task_id, worker, output=output)
         except Exception:
             self.store.finish(task_id, worker, error="planning_unavailable")
+        finally:
+            stopped.set()
+            lease_thread.join(timeout=1)
         return True
 
     def get(self, owner, task_id):

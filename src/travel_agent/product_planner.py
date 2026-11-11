@@ -33,6 +33,16 @@ def usable_place(place, excluded=()):
     )
 
 
+def allowed_on_day(place, data, day):
+    override = next((item for item in data.day_overrides if item.day == day), None)
+    names = (*data.constraints.excluded_places, *(override.excluded_places if override else ()))
+    ids = (
+        *data.constraints.excluded_source_ids,
+        *(override.excluded_source_ids if override else ()),
+    )
+    return place.source_id not in ids and usable_place(place, names)
+
+
 class ProductPlanner:
     def __init__(
         self,
@@ -213,11 +223,7 @@ class ProductPlanner:
                         keywords=food.keyword, center=first.coordinate, radius_meters=1500, count=5
                     )
                 )
-                meals = [
-                    hit
-                    for hit in meal_batch.hits
-                    if usable_place(hit, data.constraints.excluded_places)
-                ]
+                meals = [hit for hit in meal_batch.hits if allowed_on_day(hit, data, day)]
                 meals.sort(
                     key=lambda hit: (hit.source_id not in preferred_food, distance(first, hit))
                 )
@@ -401,6 +407,7 @@ class ProductPlanner:
                 if (
                     choice.place_source_id not in places
                     or choice.day > days
+                    or not allowed_on_day(places[choice.place_source_id], data, choice.day)
                     or choice.place_source_id in seen
                     or sum(c.day == choice.day for c in choices) >= 2
                 ):
@@ -418,12 +425,14 @@ class ProductPlanner:
         selected = {choice.place_source_id for choice in choices}
         remaining = [place for key, place in places.items() if key not in selected]
         for day in range(1, days + 1):
+            eligible = [place for place in remaining if allowed_on_day(place, data, day)]
             if (
                 not any(choice.day == day for choice in choices)
-                and remaining
+                and eligible
                 and len(choices) < limit
             ):
-                place = remaining.pop(0)
+                place = eligible[0]
+                remaining.remove(place)
                 choices.append(VisitChoice(day=day, place_source_id=place.source_id))
                 validation["program_filled_days"] = validation.get("program_filled_days", 0) + 1
                 notes.append(f"第{day}天按已查询地点补充轻量初稿，体验适配待确认。")

@@ -1,0 +1,1406 @@
+{
+  "description": "Sanitized engineering metrics only; synthetic fixture inputs; no independent travel quality claim.",
+  "runs": {
+    "s3_hybrid_comparison": {
+      "version": "product-evaluation-v1",
+      "fixture_sha256": "e4849454c90f88d94c3df7b5382d9986a37d8fc1a56c88db70210dd8387381cd",
+      "created_at": "2026-11-11T09:27:23.820062+00:00",
+      "split": "development",
+      "model_execution": "live",
+      "source_execution": "synthetic_replay",
+      "attempts_per_case_mode": 1,
+      "cap_minor_per_run": 500,
+      "comparison_limits": "Combined output ceiling2048 vs specialists1536+512; input duplicated for specialists. Synthetic source delay20ms; not real end-to-end latency or blind evaluation.",
+      "code_sha256": "133469fe2a8b566b05ff0dd58553de774bc95b475696a565e5acdc074f4afa96",
+      "summaries": {
+        "single_agent": {
+          "cases": 3,
+          "correct_outcomes": 3,
+          "drafts": 3,
+          "expected_refusals": 0,
+          "median_elapsed_ms": 1704,
+          "overlapping_agent_runs": 0,
+          "model_estimate_micro": 16996,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        },
+        "parallel_tools": {
+          "cases": 3,
+          "correct_outcomes": 3,
+          "drafts": 3,
+          "expected_refusals": 0,
+          "median_elapsed_ms": 1796,
+          "overlapping_agent_runs": 0,
+          "model_estimate_micro": 17500,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        },
+        "multi_agent": {
+          "cases": 3,
+          "correct_outcomes": 3,
+          "drafts": 3,
+          "expected_refusals": 0,
+          "median_elapsed_ms": 1518,
+          "overlapping_agent_runs": 3,
+          "model_estimate_micro": 27442,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        }
+      },
+      "passed": true,
+      "results": [
+        {
+          "case_id": "development-01",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1377,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5000,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-01",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1441,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5136,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-01",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1097,
+          "agent_overlap_ms": 951,
+          "actual_model_calls": 2,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 8678,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-02",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1704,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5618,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-02",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1796,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5986,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-02",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1518,
+          "agent_overlap_ms": 1049,
+          "actual_model_calls": 2,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 9194,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-03",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1913,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 6378,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-03",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 2282,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 6378,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "development-03",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1630,
+          "agent_overlap_ms": 1202,
+          "actual_model_calls": 2,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 9570,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        }
+      ]
+    },
+    "s3_live_sources_smoke": {
+      "version": "product-evaluation-v1",
+      "fixture_sha256": "e4849454c90f88d94c3df7b5382d9986a37d8fc1a56c88db70210dd8387381cd",
+      "created_at": "2026-11-11T09:28:03.311209+00:00",
+      "split": "development",
+      "model_execution": "live",
+      "source_execution": "live",
+      "attempts_per_case_mode": 1,
+      "cap_minor_per_run": 500,
+      "comparison_limits": "Combined output ceiling2048 vs specialists1536+512; input duplicated for specialists. Synthetic source delay20ms; not real end-to-end latency or blind evaluation.",
+      "code_sha256": "133469fe2a8b566b05ff0dd58553de774bc95b475696a565e5acdc074f4afa96",
+      "summaries": {
+        "multi_agent": {
+          "cases": 1,
+          "correct_outcomes": 1,
+          "drafts": 1,
+          "expected_refusals": 0,
+          "median_elapsed_ms": 7052,
+          "overlapping_agent_runs": 1,
+          "model_estimate_micro": 16782,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        }
+      },
+      "passed": true,
+      "results": [
+        {
+          "case_id": "development-01",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 7052,
+          "agent_overlap_ms": 1076,
+          "actual_model_calls": 2,
+          "actual_source_calls": 8,
+          "known_model_estimate_micro": 16782,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        }
+      ]
+    },
+    "s4_offline_acceptance": {
+      "version": "product-evaluation-v1",
+      "fixture_sha256": "3f8e5e6f0786f09754f219f2b50b87756c242c5471b8e39ece67cfb472b3652d",
+      "created_at": "2026-11-11T09:55:17.397117+00:00",
+      "split": "acceptance",
+      "model_execution": "simulated",
+      "source_execution": "synthetic_replay",
+      "attempts_per_case_mode": 1,
+      "cap_minor_per_run": 500,
+      "comparison_limits": "Combined output ceiling2048 vs specialists1536+512; input duplicated for specialists. Synthetic source delay20ms; not real end-to-end latency or blind evaluation.",
+      "code_sha256": "e1e30d749b0a180f22e5567df699f771e0303624f400862a813e656a67c0298d",
+      "summaries": {
+        "single_agent": {
+          "cases": 10,
+          "correct_outcomes": 10,
+          "drafts": 6,
+          "expected_refusals": 4,
+          "median_elapsed_ms": 190.0,
+          "overlapping_agent_runs": 0,
+          "model_estimate_micro": 5400,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        },
+        "parallel_tools": {
+          "cases": 10,
+          "correct_outcomes": 10,
+          "drafts": 6,
+          "expected_refusals": 4,
+          "median_elapsed_ms": 145.5,
+          "overlapping_agent_runs": 0,
+          "model_estimate_micro": 5400,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        },
+        "multi_agent": {
+          "cases": 10,
+          "correct_outcomes": 10,
+          "drafts": 6,
+          "expected_refusals": 4,
+          "median_elapsed_ms": 146.5,
+          "overlapping_agent_runs": 9,
+          "model_estimate_micro": 10800,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        }
+      },
+      "passed": true,
+      "results": [
+        {
+          "case_id": "acceptance-01",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 183,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-01",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 136,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-01",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 136,
+          "agent_overlap_ms": 21,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-02",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 261,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-02",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 222,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-02",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 220,
+          "agent_overlap_ms": 21,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-03",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 349,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-03",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 307,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-03",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 308,
+          "agent_overlap_ms": 20,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-04",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 154,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-04",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 113,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-04",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 113,
+          "agent_overlap_ms": 21,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-05",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "daily_walking_limit"
+          ],
+          "elapsed_ms": 304,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-05",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "daily_walking_limit"
+          ],
+          "elapsed_ms": 263,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-05",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "daily_walking_limit"
+          ],
+          "elapsed_ms": 272,
+          "agent_overlap_ms": 20,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-06",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "day_coverage"
+          ],
+          "elapsed_ms": 153,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-06",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "day_coverage"
+          ],
+          "elapsed_ms": 112,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-06",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "day_coverage"
+          ],
+          "elapsed_ms": 113,
+          "agent_overlap_ms": 21,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-07",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "required_place"
+          ],
+          "elapsed_ms": 197,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-07",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "required_place"
+          ],
+          "elapsed_ms": 155,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-07",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "required_place"
+          ],
+          "elapsed_ms": 157,
+          "agent_overlap_ms": 21,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-08",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "stopped",
+          "expected_status": "stopped",
+          "covered_days": [],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 65,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 0,
+          "research_validation": {},
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-08",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "stopped",
+          "expected_status": "stopped",
+          "covered_days": [],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 25,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 0,
+          "research_validation": {},
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-08",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "stopped",
+          "expected_status": "stopped",
+          "covered_days": [],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 24,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 0,
+          "research_validation": {},
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-09",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 349,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-09",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 307,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-09",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 307,
+          "agent_overlap_ms": 21,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-10",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 88,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-10",
+          "mode": "parallel_tools",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 47,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 600,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-10",
+          "mode": "multi_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 49,
+          "agent_overlap_ms": 21,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 1200,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        }
+      ]
+    },
+    "s4_live_model_acceptance": {
+      "version": "product-evaluation-v1",
+      "fixture_sha256": "3f8e5e6f0786f09754f219f2b50b87756c242c5471b8e39ece67cfb472b3652d",
+      "created_at": "2026-11-11T09:55:24.750839+00:00",
+      "split": "acceptance",
+      "model_execution": "live",
+      "source_execution": "synthetic_replay",
+      "attempts_per_case_mode": 1,
+      "cap_minor_per_run": 500,
+      "comparison_limits": "Combined output ceiling2048 vs specialists1536+512; input duplicated for specialists. Synthetic source delay20ms; not real end-to-end latency or blind evaluation.",
+      "code_sha256": "e1e30d749b0a180f22e5567df699f771e0303624f400862a813e656a67c0298d",
+      "summaries": {
+        "single_agent": {
+          "cases": 10,
+          "correct_outcomes": 10,
+          "drafts": 6,
+          "expected_refusals": 4,
+          "median_elapsed_ms": 1382.0,
+          "overlapping_agent_runs": 0,
+          "model_estimate_micro": 48764,
+          "unknown_model_cost_runs": 0,
+          "invalid_research_place_ids": 0,
+          "program_filled_days": 0,
+          "research_failures": 0
+        }
+      },
+      "passed": true,
+      "results": [
+        {
+          "case_id": "acceptance-01",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1372,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5016,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-02",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1905,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5584,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-03",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1846,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 6174,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-04",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 1253,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5160,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-05",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1,
+            2
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "daily_walking_limit"
+          ],
+          "elapsed_ms": 1392,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5584,
+          "research_validation": {
+            "proposed_visits": 4,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-06",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "day_coverage"
+          ],
+          "elapsed_ms": 1304,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5256,
+          "research_validation": {
+            "proposed_visits": 1,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-07",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "invalid_plan",
+          "expected_status": "invalid_plan",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [
+            "required_place"
+          ],
+          "elapsed_ms": 1247,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 5140,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-08",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "stopped",
+          "expected_status": "stopped",
+          "covered_days": [],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 65,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 0,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 0,
+          "research_validation": {},
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-09",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1,
+            2,
+            3
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 2368,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 6422,
+          "research_validation": {
+            "proposed_visits": 6,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        },
+        {
+          "case_id": "acceptance-10",
+          "mode": "single_agent",
+          "passed": true,
+          "status": "draft",
+          "expected_status": "draft",
+          "covered_days": [
+            1
+          ],
+          "untraceable_activities": 0,
+          "failed_rules": [],
+          "elapsed_ms": 2287,
+          "agent_overlap_ms": 0,
+          "actual_model_calls": 1,
+          "actual_source_calls": 0,
+          "known_model_estimate_micro": 4428,
+          "research_validation": {
+            "proposed_visits": 2,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0
+          },
+          "research_failures": 0
+        }
+      ]
+    }
+  }
+}

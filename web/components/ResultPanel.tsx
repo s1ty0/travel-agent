@@ -147,6 +147,17 @@ export function ResultPanel({ task }: { task: Task | null }) {
         </div>
       ) : (
         <div className="result-body">
+          {result.is_demo && (
+            <div className="notice warning" role="note">
+              <Icon name="info" />
+              <div>
+                <strong>合成演示数据 · 未调用真实服务</strong>
+                <p>
+                  地点、路线和资料均为模拟，仅展示规划与修改流程，不可据此旅行。
+                </p>
+              </div>
+            </div>
+          )}
           {task?.output?.change_summary && (
             <div className="notice">
               <Icon name="info" />
@@ -244,7 +255,7 @@ export function ResultPanel({ task }: { task: Task | null }) {
                         : "路线估算"}
                     <span>未独立核实</span>
                   </div>
-                  {safeLink(item.url) ? (
+                  {!result.is_demo && safeLink(item.url) ? (
                     <a
                       href={safeLink(item.url)}
                       target="_blank"
@@ -258,7 +269,11 @@ export function ResultPanel({ task }: { task: Task | null }) {
                   )}
                   {item.snippet && <p>{item.snippet}</p>}
                   <small>
-                    {item.provider === "amap" ? "高德" : "DeepSeek 搜索"}
+                    {result.is_demo
+                      ? "合成提供者"
+                      : item.provider === "amap"
+                        ? "高德"
+                        : "DeepSeek 搜索"}
                     {item.retrieved_at &&
                       ` · 获取于 ${new Date(item.retrieved_at).toLocaleString("zh-CN")}`}
                   </small>
@@ -304,9 +319,11 @@ export function ResultPanel({ task }: { task: Task | null }) {
           <div className="result-footer">
             <div>
               <span>
-                {result.service_cost.status === "uncertain"
-                  ? "服务费用待核实"
-                  : `服务费用估算 ¥${(result.service_cost.estimated_upper / 1000000).toFixed(6)}`}
+                {result.is_demo
+                  ? "演示费用 ¥0 · 无真实服务调用"
+                  : result.service_cost.status === "uncertain"
+                    ? "服务费用待核实"
+                    : `服务费用估算 ¥${(result.service_cost.estimated_upper / 1000000).toFixed(6)}`}
               </span>
               {result.service_cost.reserved_unsettled > 0 && (
                 <small>
@@ -318,7 +335,7 @@ export function ResultPanel({ task }: { task: Task | null }) {
               )}
               <small>
                 本次上限 ¥{(result.service_cost.cap / 1000000).toFixed(2)} ·
-                实际账单未对账
+                {result.is_demo ? "无实际供应商账单" : "实际账单未对账"}
               </small>
             </div>
             <button

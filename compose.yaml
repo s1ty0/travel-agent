@@ -1,0 +1,35 @@
+# Optional local synthetic demo only. Docker execution has not been verified on this host.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment: &backend
+      TRAVEL_WEB_TOKEN: ${TRAVEL_WEB_TOKEN:?Set a random local bridge token of at least 32 characters}
+      TRAVEL_WEB_LIVE: "0"
+      TRAVEL_DEMO_MODE: "1"
+      TRAVEL_TASK_WORKER_EXTERNAL: "1"
+      TRAVEL_TASK_DB: /app/runtime/tasks.sqlite3
+    volumes:
+      - private-runtime:/app/runtime
+    network_mode: service:web
+    depends_on:
+      - web
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment: *backend
+    command: ["python", "-m", "travel_agent.worker"]
+    volumes:
+      - private-runtime:/app/runtime
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      TRAVEL_WEB_TOKEN: ${TRAVEL_WEB_TOKEN:?Set a random local bridge token of at least 32 characters}
+    ports:
+      - "127.0.0.1:3000:3000"
+volumes:
+  private-runtime:

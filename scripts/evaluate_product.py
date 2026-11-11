@@ -106,11 +106,14 @@ def main():
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--live-sources", action="store_true")
+    parser.add_argument("--replace-offline-report", action="store_true")
     parser.add_argument(
         "--output", type=Path, default=ROOT / "artifacts/evaluation/product-offline.json"
     )
     args = parser.parse_args()
-    if args.output.exists():
+    if args.replace_offline_report and (args.live or args.live_sources):
+        parser.error("live_reports_are_immutable")
+    if args.output.exists() and not args.replace_offline_report:
         parser.error("output_exists_no_overwrite_or_repeat")
     modes = args.modes.split(",")
     if any(mode not in MODES for mode in modes) or not 1 <= args.limit <= 30:

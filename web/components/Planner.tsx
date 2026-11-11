@@ -65,6 +65,8 @@ export default function Planner() {
   const [allowRepair, setAllowRepair] = useState(true);
   const [researchMode, setResearchMode] = useState("single_agent");
   const [enabled, setEnabled] = useState(false);
+  const [demo, setDemo] = useState(false);
+  const [legacy, setLegacy] = useState(false);
   const [connected, setConnected] = useState(false);
   const [durableStorage, setDurableStorage] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
@@ -110,7 +112,9 @@ export default function Planner() {
   useEffect(() => {
     api("config")
       .then((data) => {
-        setEnabled(data.live_enabled);
+        setEnabled(data.planning_enabled ?? data.live_enabled);
+        setDemo(Boolean(data.demo_mode));
+        setLegacy(data.engine === "baseline");
         setConnected(true);
         setDurableStorage(data.storage === "private_session_7_days");
       })
@@ -207,6 +211,7 @@ export default function Planner() {
     setSights("auto");
     setWalkMinutes("");
     setAllowRepair(true);
+    setResearchMode("single_agent");
     requestId.current = null;
     sessionStorage.removeItem("travel_task");
   }
@@ -503,7 +508,7 @@ export default function Planner() {
                   </div>
                   <details>
                     <summary>
-                      更多条件 <span>出发地、景点上限与修正</span>
+                      更多条件 <span>出发地、景点上限与步行</span>
                     </summary>
                     <div className="field-row">
                       <label>
@@ -591,7 +596,7 @@ export default function Planner() {
                         ))}
                       </select>
                     </label>
-                    <label className="checkbox-label">
+                    <label className="checkbox-label" hidden={!legacy}>
                       <input
                         type="checkbox"
                         checked={allowRepair}
@@ -629,7 +634,9 @@ export default function Planner() {
                     )}
                   </button>
                   <p className="cost-note">
-                    真实调用 · 每次服务上限 ¥5
+                    {demo
+                      ? "合成演示 · 不调用真实服务"
+                      : "真实调用 · 每次服务上限 ¥5"}
                     <br />
                     此为模型与查询成本，与旅行预算分开。
                   </p>

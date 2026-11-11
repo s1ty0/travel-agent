@@ -166,6 +166,17 @@ class TaskStore:
             )
             return dict(row)
 
+    def heartbeat(self, task_id, worker):
+        with self.db() as db:
+            return (
+                db.execute(
+                    "UPDATE tasks SET lease_until=? WHERE id=? AND worker=? "
+                    "AND state IN ('running','cancelling')",
+                    (self.clock() + 60, task_id, worker),
+                ).rowcount
+                == 1
+            )
+
     def progress(self, task_id, worker, stage, steps, cost=None):
         with self.db() as db:
             db.execute(

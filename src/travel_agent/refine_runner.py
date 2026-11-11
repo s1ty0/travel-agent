@@ -8,7 +8,7 @@ from .deepseek import ProviderError
 from .parsing import intake
 from .planner import validate_proposal
 from .planning_models import Activity, DayWindow, ProductProposal
-from .product_planner import ENGINE, ProductPlanner
+from .product_planner import ENGINE, ProductPlanner, allowed_on_day
 from .run_context import RunContext
 from .scheduler import VERSION, Stop, arrange
 from .source_models import PlaceHit, SourceBatch, WalkingPath
@@ -49,11 +49,8 @@ def refine_product(runner, data, base_output, edit, ledger, *, cancel=None, prog
         day = activity["day"]
         override = next((item for item in data.day_overrides if item.day == day), None)
         active_window = override.window if override and override.window else window
-        excluded = (
-            *data.constraints.excluded_places,
-            *(override.excluded_places if override else ()),
-        )
-        if any(name in activity["place_name"] for name in excluded):
+        place = places.get(activity["place_source_id"])
+        if place is None or not allowed_on_day(place, data, day):
             continue
         if activity["kind"] == "meal" and activity["start_minute"] >= active_window.end_minute:
             continue
