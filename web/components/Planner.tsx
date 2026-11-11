@@ -63,6 +63,7 @@ export default function Planner() {
   const [sights, setSights] = useState<number | "auto">("auto");
   const [walkMinutes, setWalkMinutes] = useState<number | "">("");
   const [allowRepair, setAllowRepair] = useState(true);
+  const [researchMode, setResearchMode] = useState("single_agent");
   const [enabled, setEnabled] = useState(false);
   const [connected, setConnected] = useState(false);
   const [durableStorage, setDurableStorage] = useState(false);
@@ -80,6 +81,12 @@ export default function Planner() {
   const acceptConditions = useCallback((value: Task) => {
     const planning = value.output?.planning;
     if (!planning) return;
+    const mode = value.output?.result.research_mode;
+    if (
+      mode &&
+      ["single_agent", "parallel_tools", "multi_agent"].includes(mode)
+    )
+      setResearchMode(mode);
     setCity(planning.city === "待选择目的城市" ? "" : planning.city);
     setBudget(planning.trip.budget ?? "");
     setDays(planning.trip.days ?? 1);
@@ -220,6 +227,7 @@ export default function Planner() {
       request_id: id,
       ...(baseTask?.output?.planning ? { base_task_id: baseTask.task_id } : {}),
       max_replans: allowRepair ? 1 : 0,
+      research_mode: researchMode,
       ...(ideaOnly
         ? { idea: message.trim() }
         : {
@@ -519,6 +527,20 @@ export default function Planner() {
                         />
                       </label>
                     </div>
+                    <label>
+                      研究方式
+                      <select
+                        value={researchMode}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setResearchMode(event.target.value)
+                        }
+                      >
+                        <option value="single_agent">标准研究</option>
+                        <option value="parallel_tools">并行查询对照</option>
+                        <option value="multi_agent">专精并行（实验）</option>
+                      </select>
+                    </label>
                     <label>
                       每日步行上限（分钟） <small>留空暂按90分钟</small>
                       <input

@@ -36,6 +36,7 @@ export type Activity = {
 export type Result = {
   run_id: string;
   status: string;
+  research_mode?: string;
   issue?: string;
   model_calls: number;
   source_calls: number;

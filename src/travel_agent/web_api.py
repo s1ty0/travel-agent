@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 from time import monotonic
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -40,6 +40,7 @@ class WebPlanRequest(Contract):
     idea: Annotated[str, Field(min_length=1, max_length=2000)] | None = None
     base_task_id: UUID | None = None
     max_replans: Annotated[int, Field(strict=True, ge=0, le=1)] = 1
+    research_mode: Literal["single_agent", "parallel_tools", "multi_agent"] | None = None
 
     @model_validator(mode="after")
     def one_input(self):
@@ -83,7 +84,7 @@ def run_plan(
             settings,
             amap_key_from_env(),
             prices,
-            mode=os.environ.get("TRAVEL_RESEARCH_MODE", "single_agent"),
+            mode=data.research_mode or os.environ.get("TRAVEL_RESEARCH_MODE", "single_agent"),
         )
         if use_product
         else BaselineRunner(settings, amap_key_from_env(), limits=limits, prices=prices)
@@ -91,7 +92,16 @@ def run_plan(
     ledger = ServiceBudget(limits.service_cap_minor)
     planning, assumptions, events = data.planning, [], []
     initial_calls, edit = 0, None
-    if use_product and data.planning and base_planning and base_output:
+    if (
+        use_product
+        and data.planning
+        and base_planning
+        and base_output
+        and (
+            data.research_mode is None
+            or data.research_mode == base_output["result"].get("research_mode")
+        )
+    ):
         edit = structured_edit(data.planning, base_planning)
     if data.idea is not None:
         prices.validate(settings.model, runner.today)

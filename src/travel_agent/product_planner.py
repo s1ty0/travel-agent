@@ -14,7 +14,7 @@ from .run_context import RunContext
 from .scheduler import VERSION, Stop, arrange
 from .source_models import NearbyQuery, PlaceHit, PlaceQuery, SearchQuery, WalkingPath, WalkingQuery
 
-ENGINE = "source-first-v1"
+ENGINE = "source-first-v1.1"
 
 
 def distance(first, second):
@@ -82,6 +82,12 @@ class ProductPlanner:
         window = data.day_window or DayWindow()
         constraints = data.effective_constraints()
         places = {}
+        research_validation = {
+            "proposed_visits": 0,
+            "invalid_place_ids": 0,
+            "rejected_assignments": 0,
+            "program_filled_days": 0,
+        }
         try:
             if (
                 request.days not in (1, 2, 3)
@@ -93,9 +99,20 @@ class ProductPlanner:
                 raise ProviderError("destination_city_mismatch")
             if data.trip.transport_mode not in (None, "mixed", "public"):
                 raise ProviderError("baseline_walking_mode_not_confirmed")
+            interests = data.trip.raw_text + " " + " ".join(data.trip.preferences)
+            keyword = next(
+                (
+                    word
+                    for word in ("博物馆", "公园", "古镇", "园林", "寺庙")
+                    if word in interests and ("不要" + word) not in interests
+                ),
+                "风景名胜",
+            )
+            food_keyword = "素食" if "素食" in interests or "吃素" in interests else "餐厅"
             queries = [
                 SearchQuery(query=f"{data.city} 旅行 景点 用餐 预约 注意事项", count=3),
-                PlaceQuery(city=data.city, keywords="风景名胜", count=15),
+                PlaceQuery(city=data.city, keywords=keyword, count=15),
+                PlaceQuery(city=data.city, keywords=food_keyword, count=10),
             ]
             if self.mode == "single_agent":
                 batches = [ctx.source(query) for query in queries]
@@ -104,7 +121,12 @@ class ProductPlanner:
                 for result in batches:
                     if isinstance(result, Exception):
                         raise result
-            for batch in batches:
+            food_pool = {
+                hit.source_id: hit
+                for hit in batches[2].hits
+                if usable_place(hit, data.constraints.excluded_places)
+            }
+            for batch in batches[:2]:
                 for hit in batch.hits:
                     if usable_place(hit, data.constraints.excluded_places):
                         places[hit.source_id] = hit
@@ -122,6 +144,7 @@ class ProductPlanner:
                 "constraints": data.constraints.model_dump(mode="json"),
                 "places": [hit.model_dump(mode="json") for hit in places.values()],
                 "search_leads": [hit.model_dump(mode="json") for hit in batches[0].hits],
+                "food_places": [hit.model_dump(mode="json") for hit in food_pool.values()],
             }
             food = FoodResearch()
             experience = None
@@ -137,8 +160,15 @@ class ProductPlanner:
             else:
                 branches = ctx.parallel(
                     [
-                        lambda: ctx.model("experience_agent", ExperienceResearch, research_data),
-                        lambda: ctx.model("food_agent", FoodResearch, research_data),
+                        lambda: ctx.model(
+                            "experience_agent",
+                            ExperienceResearch,
+                            research_data,
+                            output_tokens=1536,
+                        ),
+                        lambda: ctx.model(
+                            "food_agent", FoodResearch, research_data, output_tokens=512
+                        ),
                     ]
                 )
                 ctx.guard()
@@ -150,7 +180,12 @@ class ProductPlanner:
                     food = branches[1]
                 else:
                     notes.append("餐饮研究分支失败，使用中性的餐厅查询词，口味偏好待确认。")
-            choices = self._choices(experience, places, data, request.days, notes)
+            choices = self._choices(
+                experience, places, data, request.days, notes, research_validation
+            )
+            preferred_food = set(food.recommended_source_ids) & food_pool.keys()
+            if len(preferred_food) < len(set(food.recommended_source_ids)):
+                notes.append("餐饮研究中未取得来源的推荐ID已剔除，餐厅由实际附近结果提供。")
             for day in range(1, request.days + 1):
                 visits = [choice for choice in choices if choice.day == day]
                 if not visits:
@@ -183,7 +218,9 @@ class ProductPlanner:
                     for hit in meal_batch.hits
                     if usable_place(hit, data.constraints.excluded_places)
                 ]
-                meals.sort(key=lambda hit: distance(first, hit))
+                meals.sort(
+                    key=lambda hit: (hit.source_id not in preferred_food, distance(first, hit))
+                )
                 for hit in meals:
                     places[hit.source_id] = hit
                 for index, (low, high, preferred) in enumerate(
@@ -260,6 +297,7 @@ class ProductPlanner:
                 "invalid_plan" if any(c["status"] == "fail" for c in plan["checks"]) else "draft"
             )
             plan.update(
+                research_validation=research_validation,
                 scheduler_version=VERSION,
                 draft_method="model_research_program_schedule",
                 walking_minutes_by_day=walking,
@@ -344,11 +382,17 @@ class ProductPlanner:
             "created_at": datetime.now(UTC).isoformat(),
             "price_checked_on": self.prices.checked_on.isoformat(),
             "price_valid_until": self.prices.valid_until.isoformat(),
+            "model_rates_micro": {
+                "input": self.prices.input_micro_cny_per_token,
+                "output": self.prices.output_micro_cny_per_token,
+            },
             "amap_cost_basis": "user_confirmed_free_quota_no_paid_fallback",
         }
 
     @staticmethod
-    def _choices(experience, places, data, days, notes):
+    def _choices(experience, places, data, days, notes, validation=None):
+        validation = validation if validation is not None else {}
+        validation["proposed_visits"] = len(experience.visits) if experience else 0
         limit = data.effective_constraints()["max_sightseeing_places"] or 2 * days
         choices = []
         if experience:
@@ -360,6 +404,12 @@ class ProductPlanner:
                     or choice.place_source_id in seen
                     or sum(c.day == choice.day for c in choices) >= 2
                 ):
+                    key = (
+                        "invalid_place_ids"
+                        if choice.place_source_id not in places
+                        else "rejected_assignments"
+                    )
+                    validation[key] = validation.get(key, 0) + 1
                     notes.append("研究候选含无效、重复或超范围地点，已排除；不生成虚构引用。")
                     continue
                 if len(choices) < limit:
@@ -375,6 +425,7 @@ class ProductPlanner:
             ):
                 place = remaining.pop(0)
                 choices.append(VisitChoice(day=day, place_source_id=place.source_id))
+                validation["program_filled_days"] = validation.get("program_filled_days", 0) + 1
                 notes.append(f"第{day}天按已查询地点补充轻量初稿，体验适配待确认。")
         return choices
 

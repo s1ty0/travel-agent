@@ -62,7 +62,9 @@ class RunContext:
                 self.progress(operation, len(self.events))
             return event
 
-    def model(self, role, contract, data):
+    def model(self, role, contract, data, *, output_tokens=2048):
+        if type(output_tokens) is not int or not 64 <= output_tokens <= 2048:
+            raise ProviderError("invalid_token_limit")
         timeout = self.guard()
         with self.lock:
             if self.model_calls >= 8:
@@ -71,7 +73,7 @@ class RunContext:
             self.ledger.reserve(
                 event_id,
                 120000 * self.prices.input_micro_cny_per_token
-                + 2048 * self.prices.output_micro_cny_per_token,
+                + output_tokens * self.prices.output_micro_cny_per_token,
             )
             self.model_calls += 1
         event = self.event(role, "started")
@@ -80,14 +82,15 @@ class RunContext:
             "仅从给出的地点source_id中选择，不编造地点/营业/价格/票务/事实。"
             "experience.visits或visits按请求天数分配每天1～2处不同景点，避免折返，"
             "duration_minutes为建议停留30～180分钟，不是营业时长。遵守必去/排除/景点上限。"
-            "food.keyword或keyword仅选择适合本次口味的餐饮查询词，具体餐厅由地图查询。"
+            "food.keyword或keyword选择适合本次口味的查询词；recommended_source_ids最多6个，"
+            "只从food_places选择餐厅ID，不把景点ID当餐厅，也不编造菜单、价格或营业。"
             "不输出其他字段。JSON模式："
             + json.dumps(contract.model_json_schema(), ensure_ascii=False)
         )
         payload = {
             "model": self.settings.model,
             "stream": False,
-            "max_tokens": 2048,
+            "max_tokens": output_tokens,
             "thinking": {"type": "disabled"},
             "response_format": {"type": "json_object"},
             "messages": [
@@ -113,7 +116,7 @@ class RunContext:
                 or type(incoming) is not int
                 or not 0 <= incoming <= 120000
                 or type(outgoing) is not int
-                or not 0 <= outgoing <= 2048
+                or not 0 <= outgoing <= output_tokens
             ):
                 raise ProviderError("model_usage_or_price_unknown")
             self.ledger.settle(

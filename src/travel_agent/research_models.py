@@ -19,6 +19,7 @@ class ExperienceResearch(Contract):
 
 class FoodResearch(Contract):
     keyword: Literal["餐厅", "本地菜", "小吃", "面馆", "素食"] = "餐厅"
+    recommended_source_ids: Annotated[tuple[Text, ...], Field(max_length=6)] = ()
 
 
 class CombinedResearch(Contract):

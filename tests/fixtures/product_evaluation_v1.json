@@ -1,0 +1,699 @@
+{
+  "version": "product-evaluation-v1",
+  "provenance": "Project-authored synthetic scenarios, not third-party blind evaluation",
+  "cases": [
+    {
+      "id": "development-01",
+      "split": "development",
+      "scenario": "normal",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-02",
+      "split": "development",
+      "scenario": "normal",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-03",
+      "split": "development",
+      "scenario": "normal",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-04",
+      "split": "development",
+      "scenario": "half_day",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 900
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-05",
+      "split": "development",
+      "scenario": "walking_zero",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 0
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "development-06",
+      "split": "development",
+      "scenario": "sight_limit",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "max_sightseeing_places": 1
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "development-07",
+      "split": "development",
+      "scenario": "missing_required",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "required_places": [
+            "不存在的必去地点"
+          ]
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "development-08",
+      "split": "development",
+      "scenario": "excluded_all",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "excluded_places": [
+            "演示景点"
+          ]
+        }
+      },
+      "source_flags": {},
+      "expected_status": "stopped"
+    },
+    {
+      "id": "development-09",
+      "split": "development",
+      "scenario": "unknown_routes",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {
+        "empty_routes": true
+      },
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-10",
+      "split": "development",
+      "scenario": "missing_coordinates",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {
+        "missing_coordinates": true
+      },
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-11",
+      "split": "development",
+      "scenario": "normal",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-12",
+      "split": "development",
+      "scenario": "normal",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-13",
+      "split": "development",
+      "scenario": "normal",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-14",
+      "split": "development",
+      "scenario": "half_day",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 900
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-15",
+      "split": "development",
+      "scenario": "walking_zero",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 0
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "development-16",
+      "split": "development",
+      "scenario": "sight_limit",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "max_sightseeing_places": 1
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-17",
+      "split": "development",
+      "scenario": "missing_required",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "required_places": [
+            "不存在的必去地点"
+          ]
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "development-18",
+      "split": "development",
+      "scenario": "excluded_all",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "excluded_places": [
+            "演示景点"
+          ]
+        }
+      },
+      "source_flags": {},
+      "expected_status": "stopped"
+    },
+    {
+      "id": "development-19",
+      "split": "development",
+      "scenario": "unknown_routes",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {
+        "empty_routes": true
+      },
+      "expected_status": "draft"
+    },
+    {
+      "id": "development-20",
+      "split": "development",
+      "scenario": "missing_coordinates",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {
+        "missing_coordinates": true
+      },
+      "expected_status": "draft"
+    },
+    {
+      "id": "acceptance-01",
+      "split": "acceptance",
+      "scenario": "normal",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "acceptance-02",
+      "split": "acceptance",
+      "scenario": "normal",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "acceptance-03",
+      "split": "acceptance",
+      "scenario": "normal",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "acceptance-04",
+      "split": "acceptance",
+      "scenario": "half_day",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 900
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {},
+      "expected_status": "draft"
+    },
+    {
+      "id": "acceptance-05",
+      "split": "acceptance",
+      "scenario": "walking_zero",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 0
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "acceptance-06",
+      "split": "acceptance",
+      "scenario": "sight_limit",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "max_sightseeing_places": 1
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "acceptance-07",
+      "split": "acceptance",
+      "scenario": "missing_required",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "required_places": [
+            "不存在的必去地点"
+          ]
+        }
+      },
+      "source_flags": {},
+      "expected_status": "invalid_plan"
+    },
+    {
+      "id": "acceptance-08",
+      "split": "acceptance",
+      "scenario": "excluded_all",
+      "planning": {
+        "city": "上海",
+        "trip": {
+          "destination": "上海",
+          "days": 2,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90,
+          "excluded_places": [
+            "演示景点"
+          ]
+        }
+      },
+      "source_flags": {},
+      "expected_status": "stopped"
+    },
+    {
+      "id": "acceptance-09",
+      "split": "acceptance",
+      "scenario": "unknown_routes",
+      "planning": {
+        "city": "南京",
+        "trip": {
+          "destination": "南京",
+          "days": 3,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {
+        "empty_routes": true
+      },
+      "expected_status": "draft"
+    },
+    {
+      "id": "acceptance-10",
+      "split": "acceptance",
+      "scenario": "missing_coordinates",
+      "planning": {
+        "city": "杭州",
+        "trip": {
+          "destination": "杭州",
+          "days": 1,
+          "budget": "总预算3000以内"
+        },
+        "day_window": {
+          "start_minute": 540,
+          "end_minute": 1200
+        },
+        "constraints": {
+          "max_walk_minutes": 90
+        }
+      },
+      "source_flags": {
+        "missing_coordinates": true
+      },
+      "expected_status": "draft"
+    }
+  ]
+}
