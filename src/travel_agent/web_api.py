@@ -317,7 +317,12 @@ class WebTasks:
             return self.view(task_id, task)
 
 
-tasks = DurableTasks(run_plan, embedded=os.environ.get("TRAVEL_TASK_WORKER_EXTERNAL") != "1")
+tasks = DurableTasks(
+    run_plan,
+    path=os.environ.get("TRAVEL_TASK_DB")
+    or ("runtime/demo-tasks.sqlite3" if demo_enabled() else None),
+    embedded=os.environ.get("TRAVEL_TASK_WORKER_EXTERNAL") != "1",
+)
 
 
 @router.get("/config")

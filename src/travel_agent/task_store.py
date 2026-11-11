@@ -325,4 +325,5 @@ class TaskStore:
             "state": row["state"],
             "city": output.get("city", "旅行草案"),
             "result_status": output.get("result", {}).get("status"),
+            "is_demo": bool(output.get("is_demo")),
         }

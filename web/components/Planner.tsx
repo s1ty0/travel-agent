@@ -117,14 +117,14 @@ export default function Planner() {
         setLegacy(data.engine === "baseline");
         setConnected(true);
         setDurableStorage(data.storage === "private_session_7_days");
+        const previous = sessionStorage.getItem("travel_task");
+        if (previous) {
+          busyRef.current = true;
+          setTaskId(previous);
+          setBusy(true);
+        }
       })
       .catch((err) => setError(err.message));
-    const previous = sessionStorage.getItem("travel_task");
-    if (previous) {
-      busyRef.current = true;
-      setTaskId(previous);
-      setBusy(true);
-    }
   }, []);
 
   useEffect(() => {
@@ -135,6 +135,13 @@ export default function Planner() {
       try {
         const next: Task = await api(`tasks/${taskId}`);
         if (!active) return;
+        if (next.output && Boolean(next.output.result.is_demo) !== demo) {
+          setTaskId(null);
+          setBusy(false);
+          busyRef.current = false;
+          sessionStorage.removeItem("travel_task");
+          return;
+        }
         setTask(next);
         if (next.state === "running") {
           timer = setTimeout(poll, 1200);
@@ -161,7 +168,7 @@ export default function Planner() {
       active = false;
       clearTimeout(timer);
     };
-  }, [taskId, pollingPaused, acceptConditions]);
+  }, [taskId, pollingPaused, acceptConditions, demo]);
 
   function choose(index: number) {
     const item = suggestions[index];
@@ -311,7 +318,13 @@ export default function Planner() {
         <span className="topbar-divider" />
         <span className="product-label">旅行规划工作台</span>
         <div className="topbar-right">
-          <span className="preview-label">开发预览</span>
+          <span className="preview-label">
+            {connected && enabled
+              ? demo
+                ? "合成演示"
+                : "真实规划"
+              : "开发预览"}
+          </span>
           <span className={`connection ${connected ? "online" : ""}`}>
             <span className="dot" />
             {connected ? "服务已连接" : "服务连接中"}
@@ -670,6 +683,7 @@ export default function Planner() {
             </div>
             {durableStorage && (
               <TaskHistory
+                demo={demo}
                 currentId={taskId}
                 refresh={historyRefresh}
                 busy={busy}

@@ -8,6 +8,34 @@ import type { Task } from "../lib/contracts";
 
 afterEach(() => vi.unstubAllGlobals());
 
+test("switching to live ignores an old demo draft and submits a fresh trip", async () => {
+  const demo = structuredClone(completed) as Task;
+  if (!demo.output) throw new Error("missing fixture output");
+  demo.output.result.is_demo = true;
+  sessionStorage.setItem("travel_task", demo.task_id);
+  let submitted: Record<string, unknown> | undefined;
+  const fetcher = vi.fn(async (url: string, options?: RequestInit) => {
+    if (url.endsWith("config"))
+      return Response.json({ live_enabled: true, demo_mode: false });
+    if (options?.method === "POST") {
+      submitted = JSON.parse(options.body as string);
+      return Response.json(completed);
+    }
+    return Response.json(demo);
+  });
+  vi.stubGlobal("fetch", fetcher);
+  render(<Planner />);
+  await screen.findByText("真实规划");
+  await waitFor(() => expect(sessionStorage.getItem("travel_task")).toBeNull());
+  expect(screen.queryByText("合成测试馆")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("描述你的旅行"), {
+    target: { value: "杭州一天" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "发送旅行想法" }));
+  await waitFor(() => expect(submitted?.idea).toBe("杭州一天"));
+  expect(submitted).not.toHaveProperty("base_task_id");
+});
+
 test("initial page has no invented itinerary and does not call paid task creation", async () => {
   const fetcher = vi.fn(async () => Response.json({ live_enabled: true }));
   vi.stubGlobal("fetch", fetcher);

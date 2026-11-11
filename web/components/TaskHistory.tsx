@@ -9,6 +9,7 @@ type Entry = {
   version: number;
   city: string;
   state: string;
+  is_demo?: boolean;
 };
 export function TaskHistory({
   currentId,
@@ -16,12 +17,14 @@ export function TaskHistory({
   busy,
   onOpen,
   onDeleted,
+  demo = false,
 }: {
   currentId?: string | null;
   refresh: number;
   busy: boolean;
   onOpen: (id: string) => void;
   onDeleted: () => void;
+  demo?: boolean;
 }) {
   const [trips, setTrips] = useState<Entry[]>([]);
   const [versions, setVersions] = useState<Entry[]>([]);
@@ -32,12 +35,16 @@ export function TaskHistory({
       const response = await fetch("/api/tasks", { cache: "no-store" });
       if (!response.ok) throw new Error("backend_unavailable");
       const data = await response.json();
-      setTrips(data.tasks ?? []);
+      setTrips(
+        (data.tasks ?? []).filter(
+          (entry: Entry) => Boolean(entry.is_demo) === demo,
+        ),
+      );
       setError("");
     } catch {
       setError("历史记录暂不可用，当前行程仍可查看。");
     }
-  }, []);
+  }, [demo]);
   useEffect(() => {
     void refresh;
     reload();
@@ -52,7 +59,12 @@ export function TaskHistory({
     fetch(`/api/tasks/${currentId}/versions`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { tasks: [] }))
       .then((data) => {
-        if (active) setVersions(data.tasks ?? []);
+        if (active)
+          setVersions(
+            (data.tasks ?? []).filter(
+              (entry: Entry) => Boolean(entry.is_demo) === demo,
+            ),
+          );
       })
       .catch(() => {
         if (active) setVersions([]);
@@ -60,7 +72,7 @@ export function TaskHistory({
     return () => {
       active = false;
     };
-  }, [currentId]);
+  }, [currentId, demo]);
   async function remove() {
     if (!currentId || busy) return;
     try {
