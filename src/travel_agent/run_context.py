@@ -145,7 +145,7 @@ class RunContext:
             with self.amap_lock:
                 while monotonic() < RunContext.amap_next_at:
                     self.guard()
-                    sleep(min(0.1, RunContext.amap_next_at - monotonic()))
+                    sleep(max(0, min(0.1, RunContext.amap_next_at - monotonic())))
                 RunContext.amap_next_at = monotonic() + 1.05
             timeout = self.guard()
         signature = type(query).__name__ + query.model_dump_json()

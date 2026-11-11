@@ -73,13 +73,15 @@ def _gap(start, end, *, between, route, covered_meals=()):
     return blocks, {name for name, _ in meals}
 
 
-def build_day_schedule(activities, days, window, routes):
+def build_day_schedule(activities, days, window, routes, day_windows=None):
     frames = []
     start, end = window["start_minute"], window["end_minute"]
     indexed = sorted(
         enumerate(activities), key=lambda pair: (pair[1]["day"], pair[1]["start_minute"])
     )
     for day in range(1, days + 1):
+        active_window = (day_windows or {}).get(str(day), window)
+        start, end = active_window["start_minute"], active_window["end_minute"]
         visits = [(index, activity) for index, activity in indexed if activity["day"] == day]
         if not visits:
             frames.append(

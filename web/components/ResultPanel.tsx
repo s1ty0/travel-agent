@@ -4,6 +4,7 @@ import { JourneyArt } from "./JourneyArt";
 import { DailyItinerary } from "./DailyItinerary";
 import {
   errorText,
+  stageText,
   checkDescription,
   safeLink,
   type Task,
@@ -103,7 +104,7 @@ export function ResultPanel({ task }: { task: Task | null }) {
           </div>
           <h3>正在把想法，串成旅程</h3>
           <p>
-            正在查询资料、整理安排并检查约束。
+            {stageText(task.stage)}，完成后会展示已有安排与检查结果。
             <br />
             页面刷新后可继续查看；没有自动重试。
           </p>
@@ -114,14 +115,20 @@ export function ResultPanel({ task }: { task: Task | null }) {
           <JourneyArt />
           <span className="art-label">少一点攻略切换，多一点出发的期待。</span>
           <h3>
-            {task?.state === "failed"
-              ? "这次没能完成规划"
-              : "把期待告诉我们，剩下的一起安排。"}
+            {task?.state === "cancelled"
+              ? "本次规划已取消"
+              : task?.state === "interrupted"
+                ? "规划进程已中断"
+                : task?.state === "failed"
+                  ? "这次没能完成规划"
+                  : "把期待告诉我们，剩下的一起安排。"}
           </h3>
           <p>
-            {task?.error
-              ? (errorText[task.error] ?? "服务暂不可用，请稍后检查。")
-              : "发送你的旅行想法，即可先看初稿，再补充条件完善安排。"}
+            {task?.state === "cancelled"
+              ? errorText.cancelled
+              : task?.error
+                ? (errorText[task.error] ?? "服务暂不可用，请稍后检查。")
+                : "发送你的旅行想法，即可先看初稿，再补充条件完善安排。"}
           </p>
           <div className="promise-row">
             <span>
@@ -140,6 +147,20 @@ export function ResultPanel({ task }: { task: Task | null }) {
         </div>
       ) : (
         <div className="result-body">
+          {task?.output?.change_summary && (
+            <div className="notice">
+              <Icon name="info" />
+              <div>
+                <strong>本版修改 · v{task.version ?? "更新"}</strong>
+                <p>
+                  新增{task.output.change_summary.added}项，移除
+                  {task.output.change_summary.removed}项， 调整时段
+                  {task.output.change_summary.time_changed}
+                  项。旧版保留在历史版本中。
+                </p>
+              </div>
+            </div>
+          )}
           {failures.length > 0 && (
             <div className="notice warning" role="alert">
               <Icon name="info" />

@@ -221,6 +221,41 @@ def test_cancel_before_sources_makes_no_paid_call():
     assert result["issue"] == "cancelled" and counts == {"source": 0, "model": 0}
 
 
+def test_real_pacing_clock_boundary_never_calls_sleep_with_a_negative_duration(monkeypatch):
+    from travel_agent.run_context import RunContext
+    from travel_agent.source_models import PlaceQuery, SourceBatch
+
+    clock = iter([99.999, 99.999, 100.001, 100.001])
+    monkeypatch.setattr("travel_agent.run_context.monotonic", lambda: next(clock, 100.001))
+    monkeypatch.setattr(RunContext, "amap_next_at", 100.0)
+    sleeps = []
+    monkeypatch.setattr("travel_agent.run_context.sleep", lambda value: sleeps.append(value))
+    batch = SourceBatch(
+        run_id="test",
+        provider="amap",
+        operation="places",
+        retrieved_at="2026-11-11T00:00:00Z",
+        query_sha256="test",
+        requested_count=1,
+        received_count=0,
+        status="empty",
+        hits=(),
+        pagination_status="end",
+        elapsed_ms=0,
+    )
+    monkeypatch.setattr("travel_agent.run_context.find_places", lambda *args, **kwargs: batch)
+    ctx = RunContext(
+        DeepSeekSettings("test"),
+        "amap",
+        PriceCard(amap_free_quota_only=True),
+        ServiceBudget(),
+        today=TODAY,
+        start=0,
+    )
+    assert ctx.source(PlaceQuery(city="南京", keywords="测试")).status == "empty"
+    assert sleeps and all(value >= 0 for value in sleeps)
+
+
 def test_scheduler_never_shortens_required_visit_to_fit_window():
     a, b = ("amap_" + fingerprint(x)[:20] for x in ("a", "b"))
     route = WalkingPath(source_id="walk", distance_meters=1000, duration_seconds=3600)

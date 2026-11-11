@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Path $privateDir -Force | Out-Null
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $previousToken = $env:TRAVEL_WEB_TOKEN
 $previousLive = $env:TRAVEL_WEB_LIVE
+$previousExternal = $env:TRAVEL_TASK_WORKER_EXTERNAL
 $backend = $null
 try {
     $bytes = New-Object byte[] 32
@@ -20,14 +21,17 @@ try {
     $random.Dispose()
     $env:TRAVEL_WEB_TOKEN = [BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant()
     $env:TRAVEL_WEB_LIVE = if ($Live) { '1' } else { '0' }
+    $env:TRAVEL_TASK_WORKER_EXTERNAL = '1'
     $envFile = Join-Path $projectRoot '.env'
     $backendArgs = @('run','--no-sync')
     if (Test-Path -LiteralPath $envFile) { $backendArgs += @('--env-file', ('"' + $envFile.Replace('\', '/') + '"')) }
+    $workerArgs = $backendArgs + @('python','-m','travel_agent.worker')
     $backendArgs += @('uvicorn','travel_agent.api:app','--host','127.0.0.1','--port','8000')
     $backend = Start-Process -FilePath (Get-Command uv).Source -ArgumentList $backendArgs -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $privateDir "$stamp-backend.log") -RedirectStandardError (Join-Path $privateDir "$stamp-backend-error.log")
+    $worker = Start-Process -FilePath (Get-Command uv).Source -ArgumentList $workerArgs -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $privateDir "$stamp-worker.log") -RedirectStandardError (Join-Path $privateDir "$stamp-worker-error.log")
     $mode = if ($Production) { 'start' } else { 'dev' }
     $frontend = Start-Process -FilePath (Get-Command node).Source -ArgumentList @(('"' + $nextBin + '"'),$mode,'--hostname','127.0.0.1','--port','3000') -WorkingDirectory $webRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $privateDir "$stamp-frontend.log") -RedirectStandardError (Join-Path $privateDir "$stamp-frontend-error.log")
-    @{backend_launcher_pid=$backend.Id; frontend_pid=$frontend.Id; started=$stamp; live=[bool]$Live} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $privateDir 'processes.json') -Encoding utf8
+    @{backend_launcher_pid=$backend.Id; worker_launcher_pid=$worker.Id; frontend_pid=$frontend.Id; started=$stamp; live=[bool]$Live} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $privateDir 'processes.json') -Encoding utf8
     $ready = $false
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
         try {
@@ -43,4 +47,5 @@ try {
 } finally {
     $env:TRAVEL_WEB_TOKEN = $previousToken
     $env:TRAVEL_WEB_LIVE = $previousLive
+    $env:TRAVEL_TASK_WORKER_EXTERNAL = $previousExternal
 }

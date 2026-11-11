@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { ResultPanel } from "./ResultPanel";
-import { errorText, type Task } from "../lib/contracts";
+import { TaskHistory } from "./TaskHistory";
+import { errorText, stageText, type Task } from "../lib/contracts";
 
 const suggestions = [
   {
@@ -64,6 +65,8 @@ export default function Planner() {
   const [allowRepair, setAllowRepair] = useState(true);
   const [enabled, setEnabled] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [durableStorage, setDurableStorage] = useState(false);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [task, setTask] = useState<Task | null>(null);
@@ -87,13 +90,13 @@ export default function Planner() {
     setStartDate(planning.trip.start_date ?? "");
     if (planning.day_window) {
       const time = (value: number) =>
-        `${Math.floor(value / 60)
+        `${Math.floor((value % 1440) / 60)
           .toString()
           .padStart(2, "0")}:${(value % 60).toString().padStart(2, "0")}`;
       setDayStart(time(planning.day_window.start_minute));
       setDayEnd(time(planning.day_window.end_minute));
     }
-    if (planning.trip.raw_text) setMessage(planning.trip.raw_text);
+    setMessage("");
     setAsked(true);
   }, []);
 
@@ -102,6 +105,7 @@ export default function Planner() {
       .then((data) => {
         setEnabled(data.live_enabled);
         setConnected(true);
+        setDurableStorage(data.storage === "private_session_7_days");
       })
       .catch((err) => setError(err.message));
     const previous = sessionStorage.getItem("travel_task");
@@ -127,6 +131,7 @@ export default function Planner() {
           acceptConditions(next);
           setBusy(false);
           busyRef.current = false;
+          setHistoryRefresh((value) => value + 1);
         }
       } catch (err) {
         if (!active) return;
@@ -155,6 +160,25 @@ export default function Planner() {
     setBudget(item.budget);
     setAsked(true);
     requestId.current = null;
+  }
+  async function cancelCurrent() {
+    if (!taskId) return;
+    try {
+      setTask(await api(`tasks/${taskId}/cancel`, {}));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "backend_unavailable");
+    }
+  }
+  function openSaved(id: string) {
+    if (busyRef.current || id === taskId) return;
+    setPreviousTask(null);
+    setShowPrevious(false);
+    setPollingPaused(false);
+    setError("");
+    setTaskId(id);
+    sessionStorage.setItem("travel_task", id);
+    setBusy(true);
+    busyRef.current = true;
   }
   function reset() {
     if (busy) return;
@@ -205,23 +229,33 @@ export default function Planner() {
                 start_minute:
                   Number(dayStart.slice(0, 2)) * 60 + Number(dayStart.slice(3)),
                 end_minute:
-                  Number(dayEnd.slice(0, 2)) * 60 + Number(dayEnd.slice(3)),
+                  Number(dayEnd.slice(0, 2)) * 60 + Number(dayEnd.slice(3)) ||
+                  1440,
               },
+              day_overrides: baseTask?.output?.planning?.day_overrides ?? [],
               trip: {
-                raw_text: message.trim(),
+                ...(baseTask?.output?.planning?.trip ?? {}),
+                raw_text: [
+                  baseTask?.output?.planning?.trip.raw_text ?? "",
+                  message.trim(),
+                ]
+                  .filter(Boolean)
+                  .join("\n")
+                  .slice(-4000),
                 destination: city.trim(),
-                ...(budget.trim() ? { budget: budget.trim() } : {}),
+                budget: budget.trim() || null,
                 days,
-                ...(adults ? { adults } : {}),
-                ...(startDate ? { start_date: startDate } : {}),
-                ...(origin.trim() ? { origin: origin.trim() } : {}),
+                adults: adults === "" ? null : adults,
+                start_date: startDate || null,
+                origin: origin.trim() || null,
+                ...(budget.trim() !== baseTask?.output?.planning?.trip.budget
+                  ? { budget_scope: null, cap_confirmed: false }
+                  : {}),
               },
               constraints: {
                 ...(baseTask?.output?.planning?.constraints ?? {}),
                 max_sightseeing_places: sights === "auto" ? null : sights,
-                ...(walkMinutes === ""
-                  ? {}
-                  : { max_walk_minutes: walkMinutes }),
+                max_walk_minutes: walkMinutes === "" ? null : walkMinutes,
               },
             },
           }),
@@ -557,7 +591,7 @@ export default function Planner() {
                   <button
                     type="submit"
                     className="button primary generate-button"
-                    disabled={busy || !enabled || !message.trim()}
+                    disabled={busy || !enabled || !city.trim()}
                   >
                     {busy ? (
                       <>
@@ -605,8 +639,30 @@ export default function Planner() {
               <Icon name="shield" size={15} />
               <span>不自动预约，不代下单，不执行付款。</span>
             </div>
+            {durableStorage && (
+              <TaskHistory
+                currentId={taskId}
+                refresh={historyRefresh}
+                busy={busy}
+                onOpen={openSaved}
+                onDeleted={reset}
+              />
+            )}
           </aside>
           <div>
+            {busy && taskId && (
+              <div className="history-actions">
+                <span>{stageText(task?.stage)}</span>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={cancelCurrent}
+                  disabled={task?.stage === "cancelling"}
+                >
+                  取消后续规划
+                </button>
+              </div>
+            )}
             {!busy && previousTask?.output && (
               <button
                 type="button"
@@ -635,7 +691,7 @@ export default function Planner() {
           <span>
             行迹 TRAIL <i>·</i> 让旅途回归期待
           </span>
-          <span>当前为开发预览 · 任务结果临时保留 30 分钟，请及时导出。</span>
+          <span>本地开发预览 · 私有会话保存7天 · 支持导出与删除</span>
         </footer>
       </main>
     </div>

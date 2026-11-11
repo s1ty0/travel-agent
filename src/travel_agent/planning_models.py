@@ -29,11 +29,19 @@ class DayWindow(Contract):
         return self
 
 
+class DayOverride(Contract):
+    day: Annotated[int, Field(strict=True, ge=1, le=3)]
+    window: DayWindow | None = None
+    max_walk_minutes: Annotated[int, Field(strict=True, ge=0, le=480)] | None = None
+    excluded_places: Annotated[tuple[Text, ...], Field(max_length=10)] = ()
+
+
 class PlanningInput(Contract):
     city: Text
     trip: IntakeInput
     constraints: PlanningConstraints = PlanningConstraints()
     day_window: DayWindow | None = None
+    day_overrides: Annotated[tuple[DayOverride, ...], Field(max_length=3)] = ()
     references: Annotated[tuple[ReferenceInput, ...], Field(max_length=5)] = ()
     page_urls: Annotated[
         tuple[str, ...],
@@ -42,6 +50,10 @@ class PlanningInput(Contract):
 
     @model_validator(mode="after")
     def city_present(self):
+        if len({item.day for item in self.day_overrides}) != len(self.day_overrides):
+            raise ValueError("duplicate_day_override")
+        if self.trip.days and any(item.day > self.trip.days for item in self.day_overrides):
+            raise ValueError("day_override_outside_trip")
         if not self.city.strip():
             raise ValueError("城市不能为空")
         identities = [digest(item.model_dump_json()) for item in self.references]
@@ -69,6 +81,17 @@ class PlanningInput(Contract):
             "literal_single_sight_preference": literal_single,
             "other_preferences": "not_fully_validated",
             **({"day_window": self.day_window.model_dump()} if self.day_window else {}),
+            **(
+                {
+                    "day_windows": {
+                        str(item.day): item.window.model_dump()
+                        for item in self.day_overrides
+                        if item.window
+                    }
+                }
+                if self.day_overrides
+                else {}
+            ),
         }
 
 

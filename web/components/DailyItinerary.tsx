@@ -69,9 +69,9 @@ export function DailyItinerary({
     <>
       {plan.day_window && (
         <p className="section-note">
-          每天暂按 {minute(plan.day_window.start_minute)}–
+          默认展示范围 {minute(plan.day_window.start_minute)}–
           {minute(plan.day_window.end_minute)}{" "}
-          展示。可在条件栏调整。餐饮与留白为建议时段，具体餐厅和活动仍待选择。
+          ，单日调整以各天标注为准。餐饮与留白为建议时段，营业和费用仍待核实。
         </p>
       )}
       {frames.map((frame) => (
@@ -80,6 +80,13 @@ export function DailyItinerary({
             <span>DAY {String(frame.day).padStart(2, "0")}</span>
             <h3>
               第 {frame.day} 天{" "}
+              {plan.day_windows?.[String(frame.day)] && (
+                <small>
+                  {minute(plan.day_windows[String(frame.day)].start_minute)}–
+                  {minute(plan.day_windows[String(frame.day)].end_minute)}{" "}
+                  ·{" "}
+                </small>
+              )}
               <small>
                 {frame.missing_day
                   ? "缺少本日安排"

@@ -1,6 +1,105 @@
 import { test, expect } from "@playwright/test";
 import { completed } from "../tests/fixtures";
 
+test("private history restores versions and deletes the whole trip without creating another plan", async ({
+  page,
+}) => {
+  const firstId = completed.task_id;
+  const secondId = "00000000-0000-4000-8000-000000000002";
+  const first = { ...structuredClone(completed), version: 1, root_id: firstId };
+  const second = {
+    ...structuredClone(completed),
+    task_id: secondId,
+    version: 2,
+    root_id: firstId,
+  };
+  if (!second.output) throw new Error("missing fixture");
+  second.output.change_summary = {
+    added: 0,
+    removed: 1,
+    time_changed: 0,
+    conditions_changed: true,
+  };
+  const entries = [second, first].map((value) => ({
+    task_id: value.task_id,
+    root_id: firstId,
+    version: value.version,
+    city: "南京",
+    state: "completed",
+  }));
+  let deleted = false,
+    creations = 0;
+  await page.addInitScript(
+    (id) => sessionStorage.setItem("travel_task", id),
+    secondId,
+  );
+  await page.route("**/api/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("config"))
+      return route.fulfill({
+        json: { live_enabled: true, storage: "private_session_7_days" },
+      });
+    if (route.request().method() === "POST") creations++;
+    if (route.request().method() === "DELETE") {
+      deleted = true;
+      return route.fulfill({ json: { deleted: true } });
+    }
+    if (path === "/api/tasks")
+      return route.fulfill({ json: { tasks: deleted ? [] : [entries[0]] } });
+    if (path.endsWith("versions"))
+      return route.fulfill({ json: { tasks: entries } });
+    return route.fulfill({ json: path.endsWith(secondId) ? second : first });
+  });
+  await page.goto("/");
+  await expect(page.getByText("本版修改 · v2")).toBeVisible();
+  await page.getByText("历史版本（2）").click();
+  await page.getByRole("button", { name: "查看第1版" }).click();
+  await expect(page.getByRole("button", { name: "查看第1版" })).toBeDisabled();
+  await page.getByRole("button", { name: "南京 · v2" }).click();
+  await expect(page.getByText("本版修改 · v2")).toBeVisible();
+  await page.screenshot({
+    path: `test-results/${test.info().project.name}-history.png`,
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "删除这次旅行" }).click();
+  expect(deleted).toBe(false);
+  await page.getByRole("button", { name: "确认删除全部版本" }).click();
+  await expect(
+    page.getByText("生成第一份行程后，会保存在这里。"),
+  ).toBeVisible();
+  expect(creations).toBe(0);
+});
+
+test("cancellation remains terminal after refresh and never creates a replacement task", async ({
+  page,
+}) => {
+  let cancelled = false,
+    creations = 0;
+  const state = () => ({
+    task_id: completed.task_id,
+    state: cancelled ? "cancelled" : "running",
+    stage: cancelled ? "cancelled" : "combined_research",
+    output: null,
+    error: null,
+  });
+  await page.route("**/api/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("config"))
+      return route.fulfill({ json: { live_enabled: true } });
+    if (path.endsWith("cancel")) cancelled = true;
+    else if (route.request().method() === "POST") creations++;
+    return route.fulfill({ json: state() });
+  });
+  await page.goto("/");
+  await page.getByText("南京 · 博物馆慢游").click();
+  await page.getByRole("button", { name: "发送旅行想法" }).click();
+  await page.getByRole("button", { name: "取消后续规划" }).click();
+  await expect(page.getByText("本次规划已取消")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("本次规划已取消")).toBeVisible();
+  expect(creations).toBe(1);
+});
+
 test("question, confirmation, itinerary, sources, export and refresh", async ({
   page,
 }) => {

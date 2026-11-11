@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { GET, POST } from "../app/api/[...path]/route";
+import { GET, POST, DELETE } from "../app/api/[...path]/route";
 
 const token = "synthetic-server-secret-0123456789";
 afterEach(() => {
@@ -20,6 +20,42 @@ function request(
 }
 const context = (path: string) => ({
   params: Promise.resolve({ path: path.split("/") }),
+});
+
+test("deletion and cancellation are fixed resource routes with the same origin guard", async () => {
+  vi.stubEnv("TRAVEL_WEB_TOKEN", token);
+  const id = "11111111-1111-4111-8111-111111111111";
+  const fetcher = vi.fn(async () => Response.json({ deleted: true }));
+  vi.stubGlobal("fetch", fetcher);
+  const path = `tasks/${id}`;
+  expect(
+    (
+      await DELETE(
+        request(path, {
+          method: "DELETE",
+          headers: { origin: "https://evil.example" },
+        }),
+        context(path),
+      )
+    ).status,
+  ).toBe(403);
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(
+    (await DELETE(request(path, { method: "DELETE" }), context(path))).status,
+  ).toBe(200);
+  expect(fetcher.mock.calls).toHaveLength(1);
+  expect(
+    (
+      await POST(
+        request(`${path}/versions`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        }),
+        context(`${path}/versions`),
+      )
+    ).status,
+  ).toBe(404);
 });
 
 test("bridge secret remains server-side and browser gets an HttpOnly session", async () => {

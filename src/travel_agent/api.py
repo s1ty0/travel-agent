@@ -7,15 +7,21 @@ from .claim_review import ClaimInspection, inspect_claims
 from .models import IntakeInput, LedgerInput, TripRequest, ValidationReport
 from .parsing import intake
 from .references import EvidenceInspection, import_reference, inspection_report
+from .web_api import live_enabled
 from .web_api import router as web_router
 
-app = FastAPI(title="travel-agent (M1 offline)", version="0.1.0")
+app = FastAPI(title="travel-agent · local planning MVP", version="0.1.0")
 app.include_router(web_router)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "stage": "M1", "live_providers": False}
+    return {
+        "status": "ok",
+        "stage": "S2_local_mvp",
+        "live_providers": live_enabled(),
+        "public_deployment_ready": False,
+    }
 
 
 @app.post("/v1/intake", response_model=TripRequest)

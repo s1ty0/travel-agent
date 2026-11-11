@@ -342,13 +342,15 @@ def validate_proposal(
     window = (constraints or {}).get("day_window")
     schedule = None
     if window:
+        day_windows = (constraints or {}).get("day_windows", {})
         outside = [
             a
             for a in activities
-            if a.start_minute < window["start_minute"] or a.end_minute > window["end_minute"]
+            if a.start_minute < day_windows.get(str(a.day), window)["start_minute"]
+            or a.end_minute > day_windows.get(str(a.day), window)["end_minute"]
         ]
         checks.append({"rule": "activity_time_window", "status": "fail" if outside else "pass"})
-        schedule = build_day_schedule(rendered, days, window, route_bindings)
+        schedule = build_day_schedule(rendered, days, window, route_bindings, day_windows)
         for frame in schedule:
             if frame["missing_meals"] or frame["has_open_time"]:
                 checks.append(
@@ -365,6 +367,7 @@ def validate_proposal(
             {
                 "day_schedule": schedule,
                 "day_window": window,
+                "day_windows": (constraints or {}).get("day_windows", {}),
                 "day_schedule_version": DAY_SCHEDULE_VERSION,
             }
             if schedule is not None

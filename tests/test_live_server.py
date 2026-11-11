@@ -41,7 +41,9 @@ def test_real_http_server(tmp_path):
             while True:
                 try:
                     with opener.open(base + "/health", timeout=1) as response:
-                        assert json.load(response)["stage"] == "M1"
+                        health = json.load(response)
+                        assert health["stage"] == "S2_local_mvp"
+                        assert health["public_deployment_ready"] is False
                     break
                 except (urllib.error.URLError, TimeoutError):
                     if process.poll() is not None or time.monotonic() > deadline:

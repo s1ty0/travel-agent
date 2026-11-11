@@ -194,13 +194,17 @@ class ProductPlanner:
                         stops.append(Stop(chosen.source_id, day, 60, preferred, "meal"))
             self._routes(ctx, stops, places, routes)
             activities, extra_checks, walking = arrange(
-                stops, window, routes, max_walk_minutes=data.constraints.max_walk_minutes
+                stops,
+                window,
+                routes,
+                max_walk_minutes=data.constraints.max_walk_minutes,
+                day_overrides=data.day_overrides,
             )
-            if data.constraints.max_walk_minutes is not None:
+            if data.constraints.max_walk_minutes is not None or data.day_overrides:
                 overloaded = {
-                    day
-                    for day, minutes in walking.items()
-                    if minutes > data.constraints.max_walk_minutes
+                    check["day"]
+                    for check in extra_checks
+                    if check["rule"] == "daily_walking_limit" and check["status"] == "fail"
                 }
                 removable = set()
                 for day in overloaded:
@@ -212,7 +216,11 @@ class ProductPlanner:
                     notes.append("为遵守步行上限，减少了较远的可选景点；必去地点未删除。")
                     self._routes(ctx, stops, places, routes)
                     activities, extra_checks, walking = arrange(
-                        stops, window, routes, max_walk_minutes=data.constraints.max_walk_minutes
+                        stops,
+                        window,
+                        routes,
+                        max_walk_minutes=data.constraints.max_walk_minutes,
+                        day_overrides=data.day_overrides,
                     )
             # Removing an optional stop can expose another pair; only its own route is valid.
             final_stops = [
@@ -225,7 +233,11 @@ class ProductPlanner:
             self._routes(ctx, final_stops, places, routes)
             if len(routes) != before:
                 activities, extra_checks, walking = arrange(
-                    stops, window, routes, max_walk_minutes=data.constraints.max_walk_minutes
+                    stops,
+                    window,
+                    routes,
+                    max_walk_minutes=data.constraints.max_walk_minutes,
+                    day_overrides=data.day_overrides,
                 )
             if not activities:
                 raise ProviderError("no_feasible_activities")
@@ -265,12 +277,29 @@ class ProductPlanner:
                 plan["draft_note"] = "；".join(notes)
         except ProviderError as exc:
             issue = str(exc)
-        except Exception:
+        except Exception as exc:
+            category = type(exc).__name__
+            category = (
+                category
+                if category in {"ValueError", "TypeError", "KeyError", "ValidationError"}
+                else "response_error"
+            )
+            frame, location = exc.__traceback__, "run"
+            while frame:
+                name = frame.tb_frame.f_code.co_name
+                if name in {"source", "arrange", "_choices", "_routes", "validate_proposal"}:
+                    location = name
+                frame = frame.tb_next
+            ctx.event("response_validation", "failed", error_category=category, location=location)
             issue = "invalid_model_or_tool_response"
         if plan is None and stops:
             # A supplier failure stops spending, not access to already acquired evidence.
             retained, checks, walking = arrange(
-                stops, window, routes, max_walk_minutes=data.constraints.max_walk_minutes
+                stops,
+                window,
+                routes,
+                max_walk_minutes=data.constraints.max_walk_minutes,
+                day_overrides=data.day_overrides,
             )
             if retained:
                 plan = validate_proposal(
@@ -285,6 +314,14 @@ class ProductPlanner:
                 plan["checks"].extend(checks)
                 plan["draft_note"] = "来源调用已停止，保留已取得资料；缺失交通和后续安排待核实。"
                 plan["scheduler_version"] = VERSION
+                plan["route_bindings"] = [
+                    {
+                        "origin_source_id": a,
+                        "destination_source_id": b,
+                        "route": route.model_dump(mode="json"),
+                    }
+                    for (a, b), route in routes.items()
+                ]
         return {
             "run_id": str(uuid4()),
             "engine": ENGINE,

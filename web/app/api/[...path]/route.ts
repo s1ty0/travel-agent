@@ -3,7 +3,8 @@ import { randomBytes } from "node:crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const allowed = /^(config|tasks|tasks\/[a-f0-9-]{36})$/;
+const allowed =
+  /^(config|tasks(?:\/[a-f0-9-]{36}(?:\/(?:versions|cancel))?)?)$/;
 const localHosts = new Set(["127.0.0.1:3000", "localhost:3000"]);
 const maxBodyBytes = 16384;
 
@@ -46,7 +47,16 @@ async function forward(
     return NextResponse.json({ error: "json_required" }, { status: 415 });
   }
   const path = (await context.params).path.join("/");
-  if (!allowed.test(path) || (req.method === "POST" && path !== "tasks")) {
+  const canPost =
+    path === "tasks" || /^tasks\/[a-f0-9-]{36}\/cancel$/.test(path);
+  const canDelete = /^tasks\/[a-f0-9-]{36}$/.test(path);
+  const canRead = !path.endsWith("/cancel");
+  if (
+    !allowed.test(path) ||
+    (req.method === "POST" && !canPost) ||
+    (req.method === "DELETE" && !canDelete) ||
+    (req.method === "GET" && !canRead)
+  ) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
   const token = process.env.TRAVEL_WEB_TOKEN;
@@ -91,7 +101,7 @@ async function forward(
       httpOnly: true,
       sameSite: "strict",
       path: "/",
-      maxAge: 1800,
+      maxAge: 7 * 86400,
     });
     return response;
   } catch {
@@ -100,3 +110,4 @@ async function forward(
 }
 export const GET = forward;
 export const POST = forward;
+export const DELETE = forward;

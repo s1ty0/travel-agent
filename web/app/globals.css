@@ -9,6 +9,31 @@
   --white: #fffefb;
   --sans: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
+
+.task-history {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.task-history h3 {
+  font-size: 15px;
+}
+.task-history small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+.history-actions .button {
+  font-size: 12px;
+  padding: 8px 12px;
+}
 * {
   box-sizing: border-box;
 }

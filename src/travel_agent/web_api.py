@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field, model_validator
 
 from .deepseek import DeepSeekSettings, ProviderError
+from .durable_tasks import DurableTasks
 from .evidence_store import save_provenance
 from .idea import extract_idea
 from .models import Contract
@@ -24,6 +25,8 @@ from .planner import BaselineRunner
 from .planner_cli import save_run
 from .planning_models import DayWindow, PlannerLimits, PlanningInput
 from .product_planner import ProductPlanner
+from .refine_runner import refine_product
+from .refinement import parse_local_edit, structured_edit
 from .service_budget import PriceCard, ServiceBudget
 from .source_models import SourceBatch
 from .sources import amap_key_from_env, fingerprint
@@ -63,7 +66,9 @@ def live_enabled():
     return os.environ.get("TRAVEL_WEB_LIVE") == "1"
 
 
-def run_plan(data: WebPlanRequest, *, base_planning=None, cancel=None, progress=None):
+def run_plan(
+    data: WebPlanRequest, *, base_planning=None, base_output=None, cancel=None, progress=None
+):
     start = monotonic()
     settings = DeepSeekSettings.from_env()
     limits = PlannerLimits(
@@ -85,29 +90,54 @@ def run_plan(data: WebPlanRequest, *, base_planning=None, cancel=None, progress=
     )
     ledger = ServiceBudget(limits.service_cap_minor)
     planning, assumptions, events = data.planning, [], []
-    initial_calls = 0
+    initial_calls, edit = 0, None
+    if use_product and data.planning and base_planning and base_output:
+        edit = structured_edit(data.planning, base_planning)
     if data.idea is not None:
         prices.validate(settings.model, runner.today)
         try:
-            initial_calls = 1
-            planning, assumptions = extract_idea(
-                data.idea,
-                settings,
-                prices,
-                ledger,
-                **({"base": base_planning} if base_planning else {}),
-            )
+            if cancel and cancel():
+                raise ProviderError("cancelled")
+            if use_product and base_planning and base_output:
+                edit = parse_local_edit(data.idea, base_planning, base_output)
+            if edit:
+                planning, assumptions = edit.planning, [edit.note]
+            else:
+                initial_calls = 1
+                planning, assumptions = extract_idea(
+                    data.idea,
+                    settings,
+                    prices,
+                    ledger,
+                    **({"base": base_planning} if base_planning else {}),
+                    **(
+                        {"on_reserve": lambda: progress("idea_extraction", 1, ledger.summary())}
+                        if progress
+                        else {}
+                    ),
+                )
             events = [
                 {
                     "step": 1,
-                    "operation": "idea_extraction",
+                    "operation": "local_edit" if edit else "idea_extraction",
                     "status": "ok",
                     "elapsed_ms": int((monotonic() - start) * 1000),
                 }
             ]
         except Exception as exc:
             issue = str(exc) if isinstance(exc, ProviderError) else "invalid_model_or_tool_response"
-            initial_calls = 0 if issue == "service_budget_exhausted" else 1
+            initial_calls = (
+                0
+                if issue
+                in {
+                    "service_budget_exhausted",
+                    "cancelled",
+                    "unsupported_local_refinement",
+                    "ambiguous_place_change",
+                    "day_override_outside_trip",
+                }
+                else initial_calls
+            )
             return {
                 "city": "旅行初稿",
                 "planning": None,
@@ -136,19 +166,34 @@ def run_plan(data: WebPlanRequest, *, base_planning=None, cancel=None, progress=
             update={"constraints": planning.constraints.model_copy(update={"max_walk_minutes": 90})}
         )
         assumptions.append("每日步行上限暂按90分钟，市内交通目前仅有步行估算，可修改。")
-    result = runner.run(
-        planning,
-        ledger=ledger,
-        initial_model_calls=initial_calls,
-        initial_events=events,
-        started_at=start,
-        **({"cancel": cancel, "progress": progress} if use_product else {}),
+    observer = (lambda stage, steps: progress(stage, steps, ledger.summary())) if progress else None
+    result = (
+        refine_product(
+            runner, planning, base_output, edit, ledger, cancel=cancel, progress=observer
+        )
+        if edit
+        else runner.run(
+            planning,
+            ledger=ledger,
+            initial_model_calls=initial_calls,
+            initial_events=events,
+            started_at=start,
+            **(
+                {
+                    "cancel": cancel,
+                    "progress": observer,
+                }
+                if use_product
+                else {}
+            ),
+        )
     )
     # Existing minimal audit excludes the itinerary, raw request, quotes and prompt.
     audit_path = Path("runtime/web-audit.sqlite3")
     try:
         for batch in result["sources"]:
-            save_provenance(SourceBatch.model_validate(batch), audit_path)
+            if batch["run_id"] not in result.get("reused_source_run_ids", []):
+                save_provenance(SourceBatch.model_validate(batch), audit_path)
         save_run(result, audit_path)
         audit_saved = True
     except (OSError, sqlite3.Error):
@@ -249,7 +294,7 @@ class WebTasks:
             return self.view(task_id, task)
 
 
-tasks = WebTasks()
+tasks = DurableTasks(run_plan, embedded=os.environ.get("TRAVEL_TASK_WORKER_EXTERNAL") != "1")
 
 
 @router.get("/config")
@@ -258,7 +303,7 @@ def web_config(owner: Annotated[str, Depends(web_owner)]):
         "live_enabled": live_enabled(),
         "service_cap_minor": 500,
         "production_ready": False,
-        "storage": "ephemeral_30_minutes",
+        "storage": "private_session_7_days",
         "engine": os.environ.get("TRAVEL_PLANNER_ENGINE", "source_first"),
     }
 
@@ -275,3 +320,23 @@ def create_task(data: WebPlanRequest, owner: Annotated[str, Depends(web_owner)])
 @router.get("/tasks/{task_id}")
 def get_task(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
     return tasks.get(owner, str(task_id))
+
+
+@router.get("/tasks")
+def task_history(owner: Annotated[str, Depends(web_owner)]):
+    return {"tasks": tasks.history(owner)}
+
+
+@router.get("/tasks/{task_id}/versions")
+def task_versions(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
+    return {"tasks": tasks.history(owner, str(task_id))}
+
+
+@router.post("/tasks/{task_id}/cancel")
+def cancel_task(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
+    return tasks.cancel(owner, str(task_id))
+
+
+@router.delete("/tasks/{task_id}")
+def delete_task(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
+    return tasks.delete(owner, str(task_id))

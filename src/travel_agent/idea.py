@@ -57,12 +57,16 @@ def _count(text, unit):
     )
 
 
-def extract_idea(text, settings, prices, ledger, *, transport=None, timeout=30, base=None):
+def extract_idea(
+    text, settings, prices, ledger, *, transport=None, timeout=30, base=None, on_reserve=None
+):
     # 120000 tokens is the same conservative input ceiling used by the planner.
     ledger.reserve(
         "idea_model",
         120000 * prices.input_micro_cny_per_token + 512 * prices.output_micro_cny_per_token,
     )
+    if on_reserve:
+        on_reserve()
     try:
         body = _json_request(
             "https://api.deepseek.com/chat/completions",
@@ -151,5 +155,8 @@ def extract_idea(text, settings, prices, ledger, *, transport=None, timeout=30, 
         trip=trip,
         constraints=base.constraints if base else {},
         day_window=base.day_window if base else None,
+        day_overrides=tuple(item for item in base.day_overrides if item.day <= days)
+        if base
+        else (),
     )
     return planning, assumptions
