@@ -6,14 +6,18 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
 from uuid import uuid4
 
+from fastapi import HTTPException
+
 from .task_store import TaskStore
+from .trial import open_key, trial_enabled
 
 
 class DurableTasks:
-    def __init__(self, runner, *, path=None, embedded=True):
+    def __init__(self, runner, *, path=None, embedded=True, database_url=None):
         self.runner = runner
         self.path = path or os.environ.get("TRAVEL_TASK_DB", "runtime/tasks.sqlite3")
         self.embedded = embedded
+        self.database_url = database_url
         self.pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="travel-durable")
         self.lock, self._store = Lock(), None
 
@@ -21,11 +25,16 @@ class DurableTasks:
     def store(self):
         with self.lock:
             if self._store is None:
-                self._store = TaskStore(self.path)
+                if self.database_url:
+                    from .postgres_tasks import PostgresTaskStore
+
+                    self._store = PostgresTaskStore(self.database_url)
+                else:
+                    self._store = TaskStore(self.path)
             return self._store
 
-    def create(self, owner, data):
-        view, fresh = self.store.create(owner, data)
+    def create(self, owner, data, *, admission=None):
+        view, fresh = self.store.create(owner, data, admission=admission)
         if fresh and self.embedded:
             self.pool.submit(self.execute, view["task_id"])
         return self.get(owner, view["task_id"])
@@ -48,6 +57,11 @@ class DurableTasks:
         lease_thread = Thread(target=heartbeat, daemon=True, name="travel-task-lease")
         lease_thread.start()
         try:
+            if trial_enabled() and not row["admitted"]:
+                raise HTTPException(409, "task_key_expired")
+            credentials = {}
+            if row["encrypted_key"] is not None:
+                credentials["user_api_key"] = open_key(task_id, row["encrypted_key"])
             data = WebPlanRequest.model_validate_json(row["input_json"])
             base_output = None
             if row["base_id"]:
@@ -71,10 +85,16 @@ class DurableTasks:
                 progress=lambda stage, steps, cost=None: self.store.progress(
                     task_id, worker, stage, steps, cost
                 ),
+                **credentials,
             )
             if base_output:
                 output["change_summary"] = summarize_changes(base_output, output)
             self.store.finish(task_id, worker, output=output)
+        except HTTPException as exc:
+            error = (
+                "task_key_expired" if exc.detail == "task_key_expired" else "planning_unavailable"
+            )
+            self.store.finish(task_id, worker, error=error)
         except Exception:
             self.store.finish(task_id, worker, error="planning_unavailable")
         finally:

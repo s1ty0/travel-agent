@@ -58,6 +58,8 @@ coverage/
 web/playwright-report/
 web/test-results/
 web/next-env.d.ts
+.vercel/
+output/pdf/
 
 # Local editor and OS files
 .idea/

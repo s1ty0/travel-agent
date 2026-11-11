@@ -1230,3 +1230,12 @@ h1 span {
     transition: none !important;
   }
 }
+.key-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.key-panel input {
+  width: 100%;
+}

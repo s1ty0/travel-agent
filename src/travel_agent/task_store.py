@@ -10,21 +10,13 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from .sources import fingerprint
+from .trial import SESSION_KEY_TTL, seal_key
 
 ACTIVE = ("queued", "running", "cancelling")
 TTL = 7 * 86400
 
 
-class TaskStore:
-    def __init__(self, path, *, clock=time):
-        self.path, self.clock = Path(path), clock
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.db() as db:
-            version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1):
-                raise RuntimeError("unsupported_task_schema")
-            db.executescript("""
-                PRAGMA journal_mode=WAL;
+SCHEMA = """
                 CREATE TABLE IF NOT EXISTS tasks (
                     id TEXT PRIMARY KEY, owner TEXT NOT NULL, request_id TEXT NOT NULL,
                     input_hash TEXT NOT NULL, input_json TEXT NOT NULL,
@@ -43,8 +35,31 @@ class TaskStore:
                 CREATE TABLE IF NOT EXISTS usage_events (
                     owner TEXT NOT NULL, created REAL NOT NULL, task_id TEXT NOT NULL UNIQUE
                 );
-                PRAGMA user_version=1;
-            """)
+                CREATE TABLE IF NOT EXISTS trial_grants (
+                    task_id TEXT PRIMARY KEY, owner TEXT NOT NULL, network TEXT NOT NULL,
+                    created REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS task_admission (
+                    task_id TEXT PRIMARY KEY, encrypted_key BLOB, expires REAL
+                );
+                CREATE TABLE IF NOT EXISTS session_credentials (
+                    owner TEXT PRIMARY KEY, encrypted_key BLOB NOT NULL, expires REAL NOT NULL
+                );
+            """
+
+
+class TaskStore:
+    def __init__(self, path, *, clock=time):
+        self.path, self.clock = Path(path), clock
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._initialize()
+
+    def _initialize(self):
+        with self.db() as db:
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            if version not in (0, 1, 2):
+                raise RuntimeError("unsupported_task_schema")
+            db.executescript("PRAGMA journal_mode=WAL;" + SCHEMA + "PRAGMA user_version=2;")
 
     @contextmanager
     def db(self):
@@ -64,6 +79,13 @@ class TaskStore:
 
     def _recover(self, db, now):
         db.execute(
+            "UPDATE tasks SET state='failed',stage='failed',error='task_key_expired',updated=? "
+            "WHERE state='queued' AND id IN (SELECT task_id FROM task_admission WHERE expires<?)",
+            (now, now),
+        )
+        db.execute("DELETE FROM task_admission WHERE expires<?", (now,))
+        db.execute("DELETE FROM session_credentials WHERE expires<?", (now,))
+        db.execute(
             "UPDATE tasks SET state='interrupted', stage='interrupted', "
             "error='worker_interrupted_no_retry', updated=? "
             "WHERE state IN ('running','cancelling') AND lease_until < ?",
@@ -72,10 +94,11 @@ class TaskStore:
         db.execute(
             "DELETE FROM tasks WHERE expires < ? AND state NOT IN ('running','cancelling')", (now,)
         )
+        db.execute("DELETE FROM task_admission WHERE task_id NOT IN (SELECT id FROM tasks)")
         db.execute("DELETE FROM requests WHERE created < ?", (now - 30 * 86400,))
         db.execute("DELETE FROM usage_events WHERE created < ?", (now - 30 * 86400,))
 
-    def create(self, owner, data):
+    def create(self, owner, data, *, admission=None):
         owner = self.owner_key(owner)
         now, signature = self.clock(), fingerprint(data.model_dump_json())
         with self.db() as db:
@@ -119,6 +142,8 @@ class TaskStore:
             ).fetchone()[0]
             if revision > 32:
                 raise HTTPException(429, "version_capacity")
+            if admission is not None:
+                admission.admit(db, owner, task_id, now)
             db.execute(
                 "INSERT INTO tasks(id,owner,request_id,input_hash,input_json,base_id,root_id,"
                 "revision,created,updated,expires,state,stage) "
@@ -164,7 +189,16 @@ class TaskStore:
                 "WHERE id=?",
                 (worker, now + 60, now, row["id"]),
             )
-            return dict(row)
+            admission = db.execute(
+                "SELECT encrypted_key FROM task_admission WHERE task_id=?", (row["id"],)
+            ).fetchone()
+            if admission is not None:
+                db.execute("DELETE FROM task_admission WHERE task_id=?", (row["id"],))
+            return {
+                **dict(row),
+                "admitted": admission is not None,
+                "encrypted_key": admission[0] if admission is not None else None,
+            }
 
     def heartbeat(self, task_id, worker):
         with self.db() as db:
@@ -211,6 +245,7 @@ class TaskStore:
         if raw is not None and len(raw.encode()) > 512 * 1024:
             raw, error = None, "task_output_limit"
         with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 "SELECT * FROM tasks WHERE id=? AND worker=?", (task_id, worker)
             ).fetchone()
@@ -247,6 +282,30 @@ class TaskStore:
         with self.db() as db:
             return self.view(self._owned(db, owner, task_id))
 
+    def has_key(self, owner):
+        with self.db() as db:
+            return (
+                db.execute(
+                    "SELECT 1 FROM session_credentials WHERE owner=? AND expires>=?",
+                    (self.owner_key(owner), self.clock()),
+                ).fetchone()
+                is not None
+            )
+
+    def save_key(self, owner, key):
+        owner = self.owner_key(owner)
+        encrypted = seal_key(owner, key)
+        with self.db() as db:
+            db.execute(
+                "INSERT INTO session_credentials VALUES(?,?,?) ON CONFLICT(owner) DO UPDATE "
+                "SET encrypted_key=excluded.encrypted_key,expires=excluded.expires",
+                (owner, encrypted, self.clock() + SESSION_KEY_TTL),
+            )
+
+    def remove_key(self, owner):
+        with self.db() as db:
+            db.execute("DELETE FROM session_credentials WHERE owner=?", (self.owner_key(owner),))
+
     def cancel(self, owner, task_id):
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -257,6 +316,8 @@ class TaskStore:
                     "UPDATE tasks SET cancel_requested=1,state=?,stage=?,updated=? WHERE id=?",
                     (state, state, self.clock(), task_id),
                 )
+                if state == "cancelled":
+                    db.execute("DELETE FROM task_admission WHERE task_id=?", (task_id,))
         return self.get(owner, task_id)
 
     def delete(self, owner, task_id):

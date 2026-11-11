@@ -1,12 +1,99 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "node:crypto";
+import { after, type NextRequest, NextResponse } from "next/server";
+import { createHmac, randomBytes } from "node:crypto";
+import { isIP } from "node:net";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 240;
 const allowed =
-  /^(config|tasks(?:\/[a-f0-9-]{36}(?:\/(?:versions|cancel))?)?)$/;
+  /^(config|credentials|tasks(?:\/[a-f0-9-]{36}(?:\/(?:versions|cancel))?)?)$/;
 const localHosts = new Set(["127.0.0.1:3000", "localhost:3000"]);
 const maxBodyBytes = 16384;
+
+function httpsOrigin(value: string | undefined): URL | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol === "https:" &&
+      (value === url.origin || value === `${url.origin}/`)
+    )
+      return url;
+  } catch {
+    return undefined;
+  }
+}
+
+function bridgeSettings(host: string) {
+  const publicOrigin =
+    process.env.TRAVEL_PUBLIC_ORIGIN ??
+    (process.env.VERCEL === "1" && process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : undefined);
+  const upstreamOrigin = process.env.TRAVEL_UPSTREAM_URL;
+  if (process.env.VERCEL === "1" || publicOrigin || upstreamOrigin) {
+    const site = httpsOrigin(publicOrigin);
+    const api = httpsOrigin(upstreamOrigin);
+    if (!site || !api || site.origin === api.origin) return undefined;
+    return {
+      allowed: site.host === host,
+      origin: site.origin,
+      upstream: api.origin,
+      secure: true,
+    };
+  }
+  return {
+    allowed: localHosts.has(host),
+    origin: `http://${host}`,
+    upstream: "http://127.0.0.1:8000",
+    secure: false,
+  };
+}
+
+function dispatchWorker(upstream: string, headers: Headers, id: string) {
+  if (!/^[a-f0-9-]{36}$/.test(id)) return;
+  after(async () => {
+    try {
+      await fetch(`${upstream}/v1/web/tasks/${id}/work`, {
+        method: "POST",
+        headers,
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(225000),
+      });
+    } catch {
+      // A queued task can be picked up on the next poll. Started tasks are never replayed.
+    }
+  });
+}
+
+function networkTag(req: NextRequest, token: string) {
+  if (process.env.VERCEL !== "1") return undefined;
+  const address = req.headers.get("x-vercel-forwarded-for")?.trim() ?? "";
+  const version = isIP(address);
+  if (!version || address.includes("%")) return undefined;
+  let network = address;
+  if (version === 6) {
+    const canonical = new URL(`http://[${address}]`).hostname.slice(1, -1);
+    const [left, right] = canonical.split("::");
+    const head = left ? left.split(":") : [];
+    const tail = right ? right.split(":") : [];
+    const parts =
+      right === undefined
+        ? head
+        : [...head, ...Array(8 - head.length - tail.length).fill("0"), ...tail];
+    if (parts.slice(0, 6).join(":") === "0:0:0:0:0:ffff") {
+      const high = Number.parseInt(parts[6], 16);
+      const low = Number.parseInt(parts[7], 16);
+      network = [high >> 8, high & 255, low >> 8, low & 255].join(".");
+    } else {
+      network = `${parts.slice(0, 4).join(":")}::/64`;
+    }
+  }
+  return createHmac("sha256", token)
+    .update(`travel-trial-network:${network}`)
+    .digest("hex");
+}
 
 async function readBody(req: NextRequest) {
   if (Number(req.headers.get("content-length") ?? 0) > maxBodyBytes)
@@ -37,7 +124,11 @@ async function forward(
 ) {
   const host = req.headers.get("host") ?? "";
   const origin = req.headers.get("origin");
-  if (!localHosts.has(host) || (origin && origin !== `http://${host}`)) {
+  const bridge = bridgeSettings(host);
+  if (!bridge) {
+    return NextResponse.json({ error: "web_not_configured" }, { status: 503 });
+  }
+  if (!bridge.allowed || (origin && origin !== bridge.origin)) {
     return NextResponse.json({ error: "origin_not_allowed" }, { status: 403 });
   }
   if (
@@ -48,9 +139,12 @@ async function forward(
   }
   const path = (await context.params).path.join("/");
   const canPost =
-    path === "tasks" || /^tasks\/[a-f0-9-]{36}\/cancel$/.test(path);
-  const canDelete = /^tasks\/[a-f0-9-]{36}$/.test(path);
-  const canRead = !path.endsWith("/cancel");
+    path === "tasks" ||
+    path === "credentials" ||
+    /^tasks\/[a-f0-9-]{36}\/cancel$/.test(path);
+  const canDelete =
+    path === "credentials" || /^tasks\/[a-f0-9-]{36}$/.test(path);
+  const canRead = path !== "credentials" && !path.endsWith("/cancel");
   if (
     !allowed.test(path) ||
     (req.method === "POST" && !canPost) ||
@@ -73,19 +167,49 @@ async function forward(
     if (body === null) {
       return NextResponse.json({ error: "input_too_large" }, { status: 413 });
     }
-    const upstream = await fetch(`http://127.0.0.1:8000/v1/web/${path}`, {
+    const headers = new Headers({
+      "Content-Type": "application/json",
+      "X-Travel-Bridge": token,
+      "X-Travel-Session": session,
+    });
+    const bypass = process.env.TRAVEL_UPSTREAM_VERCEL_BYPASS;
+    if (bridge.secure && bypass)
+      headers.set("X-Vercel-Protection-Bypass", bypass);
+    if (req.method === "POST" && path === "credentials") {
+      const key = req.headers.get("x-travel-deepseek-key");
+      if (!key || !/^sk-[a-zA-Z0-9_-]{12,160}$/.test(key)) {
+        return NextResponse.json(
+          { error: "invalid_deepseek_key_format" },
+          { status: 422 },
+        );
+      }
+      headers.set("X-Travel-DeepSeek-Key", key);
+    }
+    if (req.method === "POST" && path === "tasks" && bridge.secure) {
+      headers.set("X-Travel-Cloud", "1");
+      const network = networkTag(req, token);
+      if (network) headers.set("X-Travel-Network", network);
+    }
+    const upstream = await fetch(`${bridge.upstream}/v1/web/${path}`, {
       method: req.method,
       body,
       cache: "no-store",
       redirect: "error",
       signal: AbortSignal.timeout(10000),
-      headers: {
-        "Content-Type": "application/json",
-        "X-Travel-Bridge": token,
-        "X-Travel-Session": session,
-      },
+      headers,
     });
     const data = await upstream.json();
+    if (
+      bridge.secure &&
+      process.env.TRAVEL_VERCEL_WORKER === "1" &&
+      upstream.ok &&
+      data.stage === "queued" &&
+      typeof data.task_id === "string" &&
+      ((req.method === "POST" && path === "tasks") ||
+        (req.method === "GET" && /^tasks\/[a-f0-9-]{36}$/.test(path)))
+    ) {
+      dispatchWorker(bridge.upstream, headers, data.task_id);
+    }
     const response = NextResponse.json(
       upstream.ok
         ? data
@@ -99,6 +223,7 @@ async function forward(
     );
     response.cookies.set("travel_session", session, {
       httpOnly: true,
+      secure: bridge.secure,
       sameSite: "strict",
       path: "/",
       maxAge: 7 * 86400,

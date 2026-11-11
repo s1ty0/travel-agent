@@ -31,6 +31,7 @@ from .refinement import parse_local_edit, structured_edit
 from .service_budget import PriceCard, ServiceBudget
 from .source_models import SourceBatch
 from .sources import amap_key_from_env, fingerprint
+from .trial import Admission, check_key, trial_enabled
 
 router = APIRouter(prefix="/v1/web", tags=["web"])
 
@@ -58,6 +59,8 @@ def web_owner(request: Request):
         raise HTTPException(503, "web_not_configured")
     if not secrets.compare_digest(request.headers.get("x-travel-bridge", ""), token):
         raise HTTPException(403, "web_bridge_required")
+    if vercel_worker() and not database_url():
+        raise HTTPException(503, "cloud_database_required")
     owner = request.headers.get("x-travel-session", "")
     if not re.fullmatch(r"[a-f0-9]{64}", owner):
         raise HTTPException(403, "web_session_required")
@@ -68,8 +71,24 @@ def live_enabled():
     return os.environ.get("TRAVEL_WEB_LIVE") == "1"
 
 
+def vercel_worker():
+    return os.environ.get("TRAVEL_VERCEL_WORKER") == "1" or os.environ.get("VERCEL") == "1"
+
+
+def database_url():
+    return os.environ.get("TRAVEL_DATABASE_URL") or (
+        os.environ.get("DATABASE_URL") if vercel_worker() else None
+    )
+
+
 def run_plan(
-    data: WebPlanRequest, *, base_planning=None, base_output=None, cancel=None, progress=None
+    data: WebPlanRequest,
+    *,
+    base_planning=None,
+    base_output=None,
+    cancel=None,
+    progress=None,
+    user_api_key=None,
 ):
     start = monotonic()
     demo = demo_enabled()
@@ -77,7 +96,11 @@ def run_plan(
         raise ProviderError("demo_live_mode_conflict")
     if base_output and bool(base_output.get("is_demo")) != demo:
         raise ProviderError("base_execution_mode_mismatch")
-    settings = DeepSeekSettings("synthetic-demo-only") if demo else DeepSeekSettings.from_env()
+    settings = (
+        DeepSeekSettings("synthetic-demo-only")
+        if demo
+        else DeepSeekSettings.from_env(**({"api_key": user_api_key} if user_api_key else {}))
+    )
     limits = PlannerLimits(
         allow_rule_draft=True,
         service_cap_minor=int(os.environ.get("SERVICE_BUDGET_MINOR", "500")),
@@ -212,12 +235,14 @@ def run_plan(
     )
     # Existing minimal audit excludes the itinerary, raw request, quotes and prompt.
     audit_path = Path("runtime/web-audit.sqlite3")
+    audit_saved = False
     try:
-        for batch in result["sources"]:
-            if batch["run_id"] not in result.get("reused_source_run_ids", []):
-                save_provenance(SourceBatch.model_validate(batch), audit_path)
-        save_run(result, audit_path)
-        audit_saved = True
+        if not vercel_worker():
+            for batch in result["sources"]:
+                if batch["run_id"] not in result.get("reused_source_run_ids", []):
+                    save_provenance(SourceBatch.model_validate(batch), audit_path)
+            save_run(result, audit_path)
+            audit_saved = True
     except (OSError, sqlite3.Error):
         audit_saved = False
     output = {
@@ -321,15 +346,20 @@ tasks = DurableTasks(
     run_plan,
     path=os.environ.get("TRAVEL_TASK_DB")
     or ("runtime/demo-tasks.sqlite3" if demo_enabled() else None),
-    embedded=os.environ.get("TRAVEL_TASK_WORKER_EXTERNAL") != "1",
+    embedded=not vercel_worker() and os.environ.get("TRAVEL_TASK_WORKER_EXTERNAL") != "1",
+    database_url=database_url(),
 )
 
 
 @router.get("/config")
 def web_config(owner: Annotated[str, Depends(web_owner)]):
+    policy = live_enabled() and trial_enabled()
     return {
         "live_enabled": live_enabled(),
         "demo_mode": demo_enabled(),
+        "trial_policy": policy,
+        "has_user_key": policy and tasks.store.has_key(owner),
+        "serverless_worker": vercel_worker(),
         "planning_enabled": (live_enabled() or demo_enabled())
         and not (live_enabled() and demo_enabled()),
         "service_cap_minor": 500,
@@ -339,20 +369,50 @@ def web_config(owner: Annotated[str, Depends(web_owner)]):
     }
 
 
+@router.post("/credentials")
+def save_credentials(request: Request, owner: Annotated[str, Depends(web_owner)]):
+    if not live_enabled() or not trial_enabled() or demo_enabled():
+        raise HTTPException(503, "trial_not_configured")
+    tasks.store.save_key(owner, check_key(request.headers.get("x-travel-deepseek-key")))
+    return {"has_user_key": True}
+
+
+@router.delete("/credentials")
+def remove_credentials(owner: Annotated[str, Depends(web_owner)]):
+    tasks.store.remove_key(owner)
+    return {"has_user_key": False}
+
+
 @router.post("/tasks", status_code=202)
-def create_task(data: WebPlanRequest, owner: Annotated[str, Depends(web_owner)]):
+def create_task(data: WebPlanRequest, request: Request, owner: Annotated[str, Depends(web_owner)]):
     if live_enabled() and demo_enabled():
         raise HTTPException(503, "demo_live_mode_conflict")
     if not (live_enabled() or demo_enabled()):
         raise HTTPException(503, "live_planning_disabled")
     if data.planning and (data.planning.page_urls or data.planning.references):
         raise HTTPException(422, "web_reference_import_not_enabled")
+    if live_enabled() and request.headers.get("x-travel-cloud") == "1" and not trial_enabled():
+        raise HTTPException(503, "trial_not_configured")
+    if request.headers.get("x-travel-deepseek-key") is not None:
+        raise HTTPException(503, "trial_not_configured")
+    if live_enabled() and trial_enabled():
+        return tasks.create(owner, data, admission=Admission.from_headers(request.headers))
     return tasks.create(owner, data)
 
 
 @router.get("/tasks/{task_id}")
 def get_task(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
     return tasks.get(owner, str(task_id))
+
+
+@router.post("/tasks/{task_id}/work")
+def work_task(task_id: UUID, owner: Annotated[str, Depends(web_owner)]):
+    if not vercel_worker() or not (live_enabled() or demo_enabled()):
+        raise HTTPException(404, "task_not_found")
+    if live_enabled() and (demo_enabled() or not trial_enabled()):
+        raise HTTPException(503, "trial_not_configured")
+    task = tasks.get(owner, str(task_id))
+    return {"claimed": task["stage"] == "queued" and tasks.execute(str(task_id))}
 
 
 @router.get("/tasks")

@@ -33,13 +33,16 @@ const suggestions = [
   },
 ];
 
-async function api(path: string, body?: unknown) {
+async function api(path: string, body?: unknown, deepSeekKey?: string) {
   const response = await fetch(`/api/${path}`, {
     method: body ? "POST" : "GET",
     cache: "no-store",
     ...(body
       ? {
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(deepSeekKey ? { "X-Travel-DeepSeek-Key": deepSeekKey } : {}),
+          },
           body: JSON.stringify(body),
         }
       : {}),
@@ -66,6 +69,11 @@ export default function Planner() {
   const [researchMode, setResearchMode] = useState("single_agent");
   const [enabled, setEnabled] = useState(false);
   const [demo, setDemo] = useState(false);
+  const [trialPolicy, setTrialPolicy] = useState(false);
+  const [deepSeekKey, setDeepSeekKey] = useState("");
+  const [hasUserKey, setHasUserKey] = useState(false);
+  const [showKeyForm, setShowKeyForm] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
   const [legacy, setLegacy] = useState(false);
   const [connected, setConnected] = useState(false);
   const [durableStorage, setDurableStorage] = useState(false);
@@ -114,6 +122,15 @@ export default function Planner() {
       .then((data) => {
         setEnabled(data.planning_enabled ?? data.live_enabled);
         setDemo(Boolean(data.demo_mode));
+        setTrialPolicy(Boolean(data.trial_policy));
+        setHasUserKey(Boolean(data.has_user_key));
+        setShowKeyForm(
+          Boolean(
+            data.trial_policy &&
+            !data.has_user_key &&
+            !sessionStorage.getItem("travel_key_prompt_seen"),
+          ),
+        );
         setLegacy(data.engine === "baseline");
         setConnected(true);
         setDurableStorage(data.storage === "private_session_7_days");
@@ -201,6 +218,7 @@ export default function Planner() {
   function reset() {
     if (busy) return;
     setMessage("");
+    setDeepSeekKey("");
     setAsked(false);
     setCity("");
     setBudget("");
@@ -221,6 +239,29 @@ export default function Planner() {
     setResearchMode("single_agent");
     requestId.current = null;
     sessionStorage.removeItem("travel_task");
+  }
+  async function updateKey(remove = false) {
+    setSavingKey(true);
+    setError("");
+    try {
+      if (remove) {
+        const response = await fetch("/api/credentials", {
+          method: "DELETE",
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("trial_not_configured");
+      } else {
+        await api("credentials", {}, deepSeekKey.trim());
+      }
+      setHasUserKey(!remove);
+      setDeepSeekKey("");
+      setShowKeyForm(false);
+      sessionStorage.setItem("travel_key_prompt_seen", "1");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "backend_unavailable");
+    } finally {
+      setSavingKey(false);
+    }
   }
   async function generate(
     event: React.FormEvent<HTMLFormElement>,
@@ -297,7 +338,10 @@ export default function Planner() {
         busyRef.current = false;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "backend_unavailable");
+      const code = err instanceof Error ? err.message : "backend_unavailable";
+      setError(code);
+      if (code === "own_deepseek_key_required" || code === "task_key_expired")
+        setShowKeyForm(true);
       setBusy(false);
       busyRef.current = false;
       // A transport failure may hide an accepted task; retain this id for a safe retry.
@@ -383,6 +427,75 @@ export default function Planner() {
                 </p>
               </div>
             </div>
+            {trialPolicy && (
+              <div className="key-panel">
+                {showKeyForm ? (
+                  <>
+                    <label htmlFor="deepseek-session-key">
+                      DeepSeek API Key（可选）
+                    </label>
+                    <input
+                      id="deepseek-session-key"
+                      type="password"
+                      autoComplete="off"
+                      maxLength={163}
+                      value={deepSeekKey}
+                      disabled={busy || savingKey}
+                      onChange={(event) => setDeepSeekKey(event.target.value)}
+                    />
+                    <p className="small-note">
+                      保存后本会话优先使用你的
+                      Key。服务端加密保存，最长7天，可随时删除。跳过可试用最多3次，受网络和全站额度限制。
+                    </p>
+                    <div className="history-actions">
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={busy || savingKey || !deepSeekKey.trim()}
+                        onClick={() => updateKey()}
+                      >
+                        保存 Key
+                      </button>
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={savingKey}
+                        onClick={() => {
+                          setDeepSeekKey("");
+                          setShowKeyForm(false);
+                          sessionStorage.setItem("travel_key_prompt_seen", "1");
+                        }}
+                      >
+                        {hasUserKey ? "取消" : "先试用"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="history-actions">
+                    <button
+                      type="button"
+                      className="button secondary"
+                      disabled={busy || savingKey}
+                      onClick={() => setShowKeyForm(true)}
+                    >
+                      {hasUserKey
+                        ? "更换 DeepSeek Key"
+                        : "填写自己的 DeepSeek Key"}
+                    </button>
+                    {hasUserKey && (
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={busy || savingKey}
+                        onClick={() => updateKey(true)}
+                      >
+                        删除 Key
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <form
               className="message-form"
               onSubmit={(event) => generate(event, true)}

@@ -61,7 +61,7 @@ test("deletion and cancellation are fixed resource routes with the same origin g
 test("bridge secret remains server-side and browser gets an HttpOnly session", async () => {
   vi.stubEnv("TRAVEL_WEB_TOKEN", token);
   const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
-    expect(options.headers).toMatchObject({ "X-Travel-Bridge": token });
+    expect(new Headers(options.headers).get("x-travel-bridge")).toBe(token);
     return Response.json({ live_enabled: true });
   });
   vi.stubGlobal("fetch", fetcher);
@@ -132,4 +132,90 @@ test("network errors do not expose exception text or trigger retries", async () 
   const response = await GET(request(), context("config"));
   expect(await response.json()).toEqual({ error: "backend_unavailable" });
   expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+test("Vercel requires fixed HTTPS origins and sets a secure session cookie", async () => {
+  vi.stubEnv("VERCEL", "1");
+  vi.stubEnv("TRAVEL_WEB_TOKEN", token);
+  vi.stubEnv("TRAVEL_PUBLIC_ORIGIN", "https://travel.example");
+  vi.stubEnv("TRAVEL_UPSTREAM_URL", "https://api.travel.example");
+  const fetcher = vi.fn(async (_url: string) =>
+    Response.json({ live_enabled: true }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const headers = { host: "travel.example", origin: "https://travel.example" };
+  const response = await GET(request("config", { headers }), context("config"));
+  expect(response.status).toBe(200);
+  expect(response.headers.get("set-cookie")).toContain("Secure");
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "https://api.travel.example/v1/web/config",
+  );
+  const foreign = await GET(
+    request("config", {
+      headers: { ...headers, origin: "https://foreign.example" },
+    }),
+    context("config"),
+  );
+  expect(foreign.status).toBe(403);
+  expect((await GET(request(), context("config"))).status).toBe(403);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  "",
+  "http://api.travel.example",
+  "https://user:secret@api.travel.example",
+  "https://api.travel.example/path",
+  "https://travel.example",
+])(
+  "Vercel fails closed with an invalid backend configuration (%s)",
+  async (upstream) => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("TRAVEL_WEB_TOKEN", token);
+    vi.stubEnv("TRAVEL_PUBLIC_ORIGIN", "https://travel.example");
+    vi.stubEnv("TRAVEL_UPSTREAM_URL", upstream);
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    expect((await GET(request(), context("config"))).status).toBe(503);
+    expect(fetcher).not.toHaveBeenCalled();
+  },
+);
+
+test("Vercel forwards only its HMAC network tag and keeps a saved key off task requests", async () => {
+  vi.stubEnv("VERCEL", "1");
+  vi.stubEnv("TRAVEL_WEB_TOKEN", token);
+  vi.stubEnv("TRAVEL_PUBLIC_ORIGIN", "https://travel.example");
+  vi.stubEnv("TRAVEL_UPSTREAM_URL", "https://api.travel.example");
+  const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
+    expect(options.body).toBe("{}");
+    return Response.json({ has_user_key: true });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const key = "sk-synthetic-user-test-key";
+  const post = (path: string, ip: string) =>
+    POST(
+      request(path, {
+        method: "POST",
+        body: "{}",
+        headers: {
+          host: "travel.example",
+          origin: "https://travel.example",
+          "content-type": "application/json",
+          "x-vercel-forwarded-for": ip,
+          "x-travel-network": "untrusted-browser-input",
+          "x-travel-deepseek-key": key,
+        },
+      }),
+      context(path),
+    );
+  await post("credentials", "2001:db8::1");
+  await post("tasks", "2001:db8::1");
+  await post("tasks", "2001:db8::2");
+  const [credential, one, two] = fetcher.mock.calls.map(
+    ([, options]) => new Headers(options.headers),
+  );
+  expect(credential.get("x-travel-deepseek-key")).toBe(key);
+  expect(one.get("x-travel-deepseek-key")).toBeNull();
+  expect(one.get("x-travel-network")).toMatch(/^[0-9a-f]{64}$/);
+  expect(one.get("x-travel-network")).toBe(two.get("x-travel-network"));
 });

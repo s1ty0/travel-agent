@@ -35,10 +35,10 @@ class DeepSeekSettings:
             raise ProviderError("invalid_token_limit")
 
     @classmethod
-    def from_env(cls):
+    def from_env(cls, *, api_key=None):
         try:
             return cls(
-                api_key=os.environ.get("DEEPSEEK_API_KEY", ""),
+                api_key=os.environ.get("DEEPSEEK_API_KEY", "") if api_key is None else api_key,
                 model=os.environ.get("DEEPSEEK_MODEL", "deepseek-flash"),
                 timeout_seconds=float(os.environ.get("DEEPSEEK_TIMEOUT_SECONDS", "30")),
                 max_output_tokens=int(os.environ.get("DEEPSEEK_MAX_OUTPUT_TOKENS", "512")),

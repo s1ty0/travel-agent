@@ -125,6 +125,13 @@ export type Task = {
   };
 };
 export const errorText: Record<string, string> = {
+  cloud_database_required: "在线规划数据库尚未配置，请稍后再试。",
+  own_deepseek_key_required:
+    "试用额度已用完或当前网络无法试用。请填写自己的 DeepSeek API Key 后提交。",
+  invalid_deepseek_key_format:
+    "DeepSeek API Key 格式不正确，请检查后重新输入。",
+  task_key_expired: "本次任务的 Key 已过期，请重新输入并提交。",
+  trial_not_configured: "试用或密钥配置暂不可用，请稍后再试。",
   demo_select_nanjing_hangzhou_or_shanghai:
     "合成演示支持南京、杭州、上海1～3天，请选一个城市。",
   demo_live_mode_conflict: "演示与真实模式配置冲突，请只启用一个。",
